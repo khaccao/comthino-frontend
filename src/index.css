@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #FFF4DD; /* Cream */
+    color: #2B1608; /* Dark Brown */
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+}
+
+/* Custom Page Flip Book Styling (CSS 3D Transforms) */
+.menu-book-container {
+  perspective: 1500px;
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  height: 600px;
+  margin: 0 auto;
+}
+
+.menu-book {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.15, 0.9, 0.34, 0.95);
+}
+
+.book-page {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.15, 0.9, 0.34, 0.95);
+  transform-origin: left center;
+  background-color: #F7E4C6; /* Light Beige */
+  box-shadow: inset 3px 0 20px rgba(0, 0, 0, 0.08), 2px 2px 10px rgba(74, 37, 15, 0.1);
+  overflow: hidden;
+  border-radius: 4px 16px 16px 4px;
+  border: 1px solid rgba(74, 37, 15, 0.15);
+}
+
+.book-page.left-side {
+  left: 0;
+  transform-origin: right center;
+  border-radius: 16px 4px 4px 16px;
+  box-shadow: inset -3px 0 20px rgba(0, 0, 0, 0.08), -2px 2px 10px rgba(74, 37, 15, 0.1);
+}
+
+.book-page.right-side {
+  left: 50%;
+  transform-origin: left center;
+}
+
+/* Book Cover Styling */
+.book-cover {
+  background: linear-gradient(135deg, #4A250F 0%, #2B1608 100%);
+  color: #FFF4DD;
+  border: 4px solid #D99A2B;
+}
+
+/* Spine effect */
+.book-spine {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 10px;
+  height: 100%;
+  background: linear-gradient(to right, rgba(0,0,0,0.15), rgba(255,255,255,0.05) 30%, rgba(0,0,0,0.25) 70%, rgba(0,0,0,0.4));
+  z-index: 10;
+  transform: translateX(-50%);
+}
+
+/* Page flip transition classes */
+.page-flip-left {
+  transform: rotateY(-180deg);
+  z-index: 5;
+}
+
+.page-flip-right {
+  transform: rotateY(180deg);
+  z-index: 5;
+}
+
+/* Hide backface of elements inside 3D containers */
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Custom Scrollbar for rich aesthetics */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFF4DD;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C96A24;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4A250F;
+}
+
+/* Animations helper classes */
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
