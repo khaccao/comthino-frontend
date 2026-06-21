@@ -148,3 +148,58 @@ export interface AuditLog {
   newValue?: string;
   createdAt: string;
 }
+
+export interface BlogCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    posts: number;
+  };
+}
+
+export type BlogPostStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+
+export interface BlogPost {
+  id: string;
+  categoryId: string;
+  title: string;
+  slug: string;
+  excerpt?: string | null;
+  content: string;
+  thumbnailUrl?: string | null;
+  coverImageUrl?: string | null;
+  authorName?: string | null;
+  status: BlogPostStatus;
+  publishedAt?: string | null;
+  readingTime: number;
+  tags?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  seoKeywords?: string | null;
+  canonicalUrl?: string | null;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  ogImageUrl?: string | null;
+  schemaType?: string | null;
+  viewCount: number;
+  isFeatured: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  category?: BlogCategory;
+  relatedPosts?: BlogPost[];
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}

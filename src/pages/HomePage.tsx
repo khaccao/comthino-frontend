@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, MapPin, Calendar, Users, MessageSquare, Heart, Star, Send, X, ZoomIn } from 'lucide-react';
 import { publicApi } from '../services/api';
-import { SiteSettings, Banner, HomeSection, MenuCategory, MenuItem, Promotion, GalleryImage, Testimonial } from '../types';
+import { SiteSettings, Banner, HomeSection, MenuCategory, MenuItem, Promotion, GalleryImage, Testimonial, BlogPost } from '../types';
 import MenuBook from '../components/MenuBook';
 
 export default function HomePage() {
@@ -14,6 +14,7 @@ export default function HomePage() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [featuredBlogPosts, setFeaturedBlogPosts] = useState<BlogPost[]>([]);
 
   // Banner slideshow state
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
@@ -43,6 +44,7 @@ export default function HomePage() {
     publicApi.getPromotions().then(res => res.success && setPromotions(res.data)).catch(console.error);
     publicApi.getGallery().then(res => res.success && setGallery(res.data)).catch(console.error);
     publicApi.getTestimonials().then(res => res.success && setTestimonials(res.data)).catch(console.error);
+    publicApi.getFeaturedBlogPosts().then(res => res.success && setFeaturedBlogPosts(res.data)).catch(console.error);
 
     // Fetch featured items
     publicApi.getMenuItems().then(res => {
@@ -392,6 +394,55 @@ export default function HomePage() {
       </section>
 
       {/* 6. KHUYẾN MÃI BANNER */}
+      {featuredBlogPosts.length > 0 && (
+        <section id="tin-tuc" className="py-20 bg-quecan-cream">
+          <div className="max-w-7xl mx-auto px-4 md:px-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-10">
+              <div className="max-w-xl space-y-3">
+                <span className="text-xs uppercase font-bold tracking-widest text-quecan-orange block">Tin tức & món ngon</span>
+                <h2 className="font-serif font-bold text-3xl md:text-4xl text-quecan-brown">Câu Chuyện Từ Gian Bếp</h2>
+                <div className="w-16 h-0.5 bg-quecan-golden"></div>
+                <p className="text-xs md:text-sm text-quecan-brown/70 leading-relaxed">
+                  Bài viết mới về thực đơn, cơm văn phòng, món ngon Bắc Bộ và ưu đãi được quản trị trực tiếp từ admin.
+                </p>
+              </div>
+              <a href="/tin-tuc" className="inline-flex items-center justify-center rounded-full bg-quecan-brown px-5 py-2.5 text-sm font-bold text-white shadow-warm hover:bg-quecan-orange transition">
+                Xem tất cả
+              </a>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {featuredBlogPosts.slice(0, 3).map((post) => (
+                <article key={post.id} className="group overflow-hidden rounded-2xl bg-white border border-quecan-beige/35 shadow-warm hover:shadow-warm-lg transition">
+                  <a href={`/tin-tuc/${post.slug}`} className="block h-52 overflow-hidden bg-stone-100">
+                    <img
+                      src={renderImg(post.thumbnailUrl || post.coverImageUrl || post.ogImageUrl || '/images/favicon.png')}
+                      alt={post.title}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </a>
+                  <div className="p-6">
+                    {post.category && (
+                      <a href={`/tin-tuc/danh-muc/${post.category.slug}`} className="text-[11px] uppercase tracking-wider font-bold text-quecan-orange">
+                        {post.category.name}
+                      </a>
+                    )}
+                    <h3 className="mt-2 font-serif font-bold text-xl leading-snug text-quecan-brown group-hover:text-quecan-orange transition">
+                      <a href={`/tin-tuc/${post.slug}`}>{post.title}</a>
+                    </h3>
+                    <p className="mt-3 text-sm leading-relaxed text-quecan-brown/70 line-clamp-3">{post.excerpt}</p>
+                    <p className="mt-4 text-xs font-semibold text-stone-500">
+                      {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString('vi-VN') : ''}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {promotions.length > 0 && (
         <section id="khuyen-mai" className="py-20 bg-gradient-to-r from-quecan-orange to-quecan-brown text-white">
           <div className="max-w-7xl mx-auto px-4 md:px-6">

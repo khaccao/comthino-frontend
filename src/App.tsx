@@ -4,6 +4,9 @@ import AdminLayout from './layouts/AdminLayout';
 
 // Public pages
 import HomePage from './pages/HomePage';
+import BlogListPage from './pages/BlogListPage';
+import BlogCategoryPage from './pages/BlogCategoryPage';
+import BlogDetailPage from './pages/BlogDetailPage';
 
 // Admin pages
 import Login from './pages/admin/Login';
@@ -19,6 +22,9 @@ import Gallery from './pages/admin/Gallery';
 import Testimonials from './pages/admin/Testimonials';
 import ContactMessages from './pages/admin/ContactMessages';
 import MediaManager from './pages/admin/MediaManager';
+import BlogCategories from './pages/admin/BlogCategories';
+import BlogPosts from './pages/admin/BlogPosts';
+import BlogPostEditor from './pages/admin/BlogPostEditor';
 
 export default function App() {
   return (
@@ -27,6 +33,9 @@ export default function App() {
         {/* PUBLIC WEBPAGE ROUTES */}
         <Route path="/" element={<PublicLayout />}>
           <Route index element={<HomePage />} />
+          <Route path="tin-tuc" element={<BlogListPage />} />
+          <Route path="tin-tuc/danh-muc/:slug" element={<BlogCategoryPage />} />
+          <Route path="tin-tuc/:slug" element={<BlogDetailPage />} />
         </Route>
 
         {/* ADMIN LOGIN */}
@@ -47,6 +56,10 @@ export default function App() {
           <Route path="testimonials" element={<Testimonials />} />
           <Route path="contact-messages" element={<ContactMessages />} />
           <Route path="media" element={<MediaManager />} />
+          <Route path="blog/categories" element={<BlogCategories />} />
+          <Route path="blog/posts" element={<BlogPosts />} />
+          <Route path="blog/posts/new" element={<BlogPostEditor />} />
+          <Route path="blog/posts/:id/edit" element={<BlogPostEditor />} />
         </Route>
 
         {/* CATCH ALL FALLBACK */}

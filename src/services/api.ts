@@ -53,6 +53,11 @@ export const publicApi = {
   getGallery: () => api.get('/public/gallery').then(res => res.data),
   getTestimonials: () => api.get('/public/testimonials').then(res => res.data),
   postContact: (data: any) => api.post('/public/contact', data).then(res => res.data),
+  getBlogCategories: () => api.get('/public/blog/categories').then(res => res.data),
+  getBlogPosts: (params?: any) => api.get('/public/blog/posts', { params }).then(res => res.data),
+  getFeaturedBlogPosts: () => api.get('/public/blog/posts/featured').then(res => res.data),
+  getBlogPost: (slug: string) => api.get(`/public/blog/posts/${slug}`).then(res => res.data),
+  getBlogPostsByCategory: (slug: string, params?: any) => api.get(`/public/blog/posts/category/${slug}`, { params }).then(res => res.data),
 };
 
 // --- AUTH APIs ---
@@ -129,4 +134,17 @@ export const adminApi = {
   uploadImage: (formData: FormData) => api.post('/admin/upload/image', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }).then(res => res.data),
+
+  // Blog / News
+  getBlogCategories: () => api.get('/admin/blog/categories').then(res => res.data),
+  createBlogCategory: (data: any) => api.post('/admin/blog/categories', data).then(res => res.data),
+  updateBlogCategory: (id: string, data: any) => api.put(`/admin/blog/categories/${id}`, data).then(res => res.data),
+  deleteBlogCategory: (id: string) => api.delete(`/admin/blog/categories/${id}`).then(res => res.data),
+  getBlogPosts: (params?: any) => api.get('/admin/blog/posts', { params }).then(res => res.data),
+  getBlogPost: (id: string) => api.get(`/admin/blog/posts/${id}`).then(res => res.data),
+  createBlogPost: (data: any) => api.post('/admin/blog/posts', data).then(res => res.data),
+  updateBlogPost: (id: string, data: any) => api.put(`/admin/blog/posts/${id}`, data).then(res => res.data),
+  deleteBlogPost: (id: string) => api.delete(`/admin/blog/posts/${id}`).then(res => res.data),
+  publishBlogPost: (id: string) => api.post(`/admin/blog/posts/${id}/publish`).then(res => res.data),
+  unpublishBlogPost: (id: string) => api.post(`/admin/blog/posts/${id}/unpublish`).then(res => res.data),
 };

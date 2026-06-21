@@ -50,3 +50,21 @@ export function upsertLink(selector: string, attrs: Record<string, string>) {
 
   Object.entries(attrs).forEach(([key, value]) => tag?.setAttribute(key, value));
 }
+
+export function upsertJsonLd(id: string, data: Record<string, any>) {
+  let tag = document.getElementById(id) as HTMLScriptElement | null;
+
+  if (!tag) {
+    tag = document.createElement('script');
+    tag.type = 'application/ld+json';
+    tag.id = id;
+    document.head.appendChild(tag);
+  }
+
+  tag.textContent = JSON.stringify(data);
+}
+
+export function removeJsonLd(id: string) {
+  const tag = document.getElementById(id);
+  if (tag) tag.remove();
+}
