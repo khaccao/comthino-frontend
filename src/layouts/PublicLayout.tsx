@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Menu, X, Phone, Clock, MapPin, Facebook } from 'lucide-react';
 import { publicApi } from '../services/api';
 import { SiteSettings, NavigationItem } from '../types';
+import { absoluteAssetUrl, canonicalUrl, upsertLink, upsertMeta } from '../utils/seo';
 
 export default function PublicLayout() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
@@ -42,41 +43,32 @@ export default function PublicLayout() {
   useEffect(() => {
     if (settings) {
       const title = settings.seoTitle || settings.siteName || 'Cơm Thị Nở';
-      document.title = title;
-      
-      // Helper function to update meta tags
-      const updateMetaTag = (selector: string, attribute: string, value: string) => {
-        let tag = document.querySelector(selector);
-        if (!tag) {
-          tag = document.createElement('meta');
-          if (selector.includes('property=')) {
-            tag.setAttribute('property', selector.match(/property="([^"]+)"/)?.[1] || '');
-          } else if (selector.includes('name=')) {
-            tag.setAttribute('name', selector.match(/name="([^"]+)"/)?.[1] || '');
-          }
-          document.head.appendChild(tag);
-        }
-        tag.setAttribute(attribute, value);
-      };
+      const description = settings.seoDescription || settings.slogan || 'Cơm quê chuẩn vị Bắc Bộ tại Văn Quán, Hà Đông.';
+      const pageUrl = canonicalUrl(location.pathname);
+      const imageUrl = absoluteAssetUrl(settings.logoUrl);
 
-      updateMetaTag('meta[name="description"]', 'content', settings.seoDescription || '');
-      updateMetaTag('meta[name="keywords"]', 'content', settings.seoKeywords || '');
-      
-      // Update Open Graph
-      updateMetaTag('meta[property="og:title"]', 'content', title);
-      updateMetaTag('meta[property="og:description"]', 'content', settings.seoDescription || '');
-      if (settings.logoUrl) {
-         updateMetaTag('meta[property="og:image"]', 'content', settings.logoUrl.startsWith('http') ? settings.logoUrl : `${window.location.origin}/uploads/${settings.logoUrl}`);
-      }
-      
-      // Update Twitter
-      updateMetaTag('meta[property="twitter:title"]', 'content', title);
-      updateMetaTag('meta[property="twitter:description"]', 'content', settings.seoDescription || '');
-      if (settings.logoUrl) {
-         updateMetaTag('meta[property="twitter:image"]', 'content', settings.logoUrl.startsWith('http') ? settings.logoUrl : `${window.location.origin}/uploads/${settings.logoUrl}`);
-      }
+      document.title = title;
+
+      upsertLink('link[rel="canonical"]', { href: pageUrl });
+
+      upsertMeta('meta[name="title"]', { content: title });
+      upsertMeta('meta[name="description"]', { content: description });
+      upsertMeta('meta[name="keywords"]', { content: settings.seoKeywords || '' });
+
+      upsertMeta('meta[property="og:url"]', { content: pageUrl });
+      upsertMeta('meta[property="og:title"]', { content: title });
+      upsertMeta('meta[property="og:description"]', { content: description });
+      upsertMeta('meta[property="og:image"]', { content: imageUrl });
+      upsertMeta('meta[property="og:image:secure_url"]', { content: imageUrl });
+      upsertMeta('meta[property="og:image:alt"]', { content: settings.siteName || 'Cơm Thị Nở' });
+
+      upsertMeta('meta[name="twitter:url"]', { content: pageUrl });
+      upsertMeta('meta[name="twitter:title"]', { content: title });
+      upsertMeta('meta[name="twitter:description"]', { content: description });
+      upsertMeta('meta[name="twitter:image"]', { content: imageUrl });
+      upsertMeta('meta[name="twitter:image:alt"]', { content: settings.siteName || 'Cơm Thị Nở' });
     }
-  }, [settings]);
+  }, [location.pathname, settings]);
 
   // Handle smooth scroll anchor links
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
