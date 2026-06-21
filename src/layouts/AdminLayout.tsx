@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../utils/authStore';
 import {
@@ -23,7 +23,19 @@ export default function AdminLayout() {
   const { isAuthenticated, user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth >= 1024;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsSidebarOpen(window.innerWidth >= 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // If not authenticated, redirect to login page
   if (!isAuthenticated) {
@@ -51,10 +63,19 @@ export default function AdminLayout() {
   ];
 
   return (
-    <div className="min-h-screen flex bg-stone-100 text-stone-800">
+    <div className="admin-shell min-h-screen flex bg-stone-100 text-stone-800">
+      {isSidebarOpen && (
+        <button
+          type="button"
+          aria-label="Close admin menu overlay"
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 z-20 bg-black/50 backdrop-blur-[1px] lg:hidden"
+        />
+      )}
+
       {/* Sidebar for Desktop */}
       <aside
-        className={`bg-stone-900 text-stone-200 w-64 fixed inset-y-0 left-0 transform ${
+        className={`bg-stone-900 text-stone-200 w-[min(18rem,calc(100vw-2rem))] lg:w-64 fixed inset-y-0 left-0 transform ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0 lg:static transition-transform duration-300 ease-in-out z-30 flex flex-col border-r border-stone-800`}
       >
@@ -82,6 +103,9 @@ export default function AdminLayout() {
               <Link
                 key={link.path}
                 to={link.path}
+                onClick={() => {
+                  if (window.innerWidth < 1024) setIsSidebarOpen(false);
+                }}
                 className={`flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                   isActive
                     ? 'bg-amber-600 text-white shadow'
@@ -122,11 +146,12 @@ export default function AdminLayout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-stone-200 flex items-center justify-between px-6 z-20 shrink-0">
-          <div className="flex items-center">
+        <header className="min-h-16 bg-white border-b border-stone-200 flex items-center justify-between gap-3 px-4 py-3 sm:px-6 z-20 shrink-0">
+          <div className="flex min-w-0 items-center">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden p-2 rounded-md hover:bg-stone-100 text-stone-600"
+              className="lg:hidden -ml-2 p-2 rounded-md hover:bg-stone-100 text-stone-600"
+              aria-label="Open admin menu"
             >
               <MenuIcon className="w-6 h-6" />
             </button>
@@ -135,7 +160,7 @@ export default function AdminLayout() {
             </span>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-4">
             <a
               href="/"
               target="_blank"
@@ -145,7 +170,7 @@ export default function AdminLayout() {
               Xem trang chủ
             </a>
             <div className="h-4 w-px bg-stone-200 hidden sm:block"></div>
-            <div className="flex items-center space-x-2">
+            <div className="flex min-w-0 items-center gap-2">
               <span className="text-stone-600 text-sm font-medium">Xin chào, {user?.fullName}</span>
               <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full uppercase border border-amber-200">
                 {user?.role}
@@ -155,7 +180,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Dashboard Pages Mount */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        <main className="admin-content flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

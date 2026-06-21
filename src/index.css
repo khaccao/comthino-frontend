@@ -129,3 +129,80 @@
     transform: translateY(0);
   }
 }
+
+@layer components {
+  .admin-content table {
+    min-width: 760px;
+  }
+
+  .admin-content .overflow-hidden:has(> table) {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .admin-content {
+    overflow-x: hidden;
+  }
+
+  .admin-content h1 {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  .admin-content .flex.justify-between.items-center {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .admin-content .flex.justify-between.items-center > button,
+  .admin-content .flex.justify-between.items-center > a {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .admin-content form .grid.grid-cols-2,
+  .admin-content form .grid.sm\:grid-cols-3,
+  .admin-content form .grid.grid-cols-2.gap-4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-content .fixed.inset-0 {
+    align-items: flex-end;
+    padding: 0.75rem;
+  }
+
+  .admin-content .fixed.inset-0 > .rounded-2xl {
+    max-height: calc(100dvh - 1.5rem);
+    width: 100%;
+  }
+
+  .admin-content .pt-4.border-t.flex,
+  .admin-content .pt-6.border-t.flex {
+    align-items: stretch;
+    flex-direction: column-reverse;
+    gap: 0.75rem;
+  }
+
+  .admin-content .pt-4.border-t.flex > button,
+  .admin-content .pt-6.border-t.flex > button {
+    justify-content: center;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .admin-shell header .flex.min-w-0.items-center.gap-2 > span:first-child {
+    display: none;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .admin-shell header .flex.min-w-0.items-center.gap-2 > span:first-child {
+    display: inline-block;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

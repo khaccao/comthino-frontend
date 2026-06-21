@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, BookOpen, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen, Sparkles, Star, Utensils } from 'lucide-react';
 import { MenuCategory, MenuItem } from '../types';
 
 interface MenuBookProps {
@@ -8,6 +8,7 @@ interface MenuBookProps {
 
 export default function MenuBook({ categories }: MenuBookProps) {
   const [currentPage, setCurrentPage] = useState(0); // 0 = Cover, 1 = Page 1 & 2, etc.
+  const [activeMobileCategoryId, setActiveMobileCategoryId] = useState<string | null>(null);
 
   // Flatten book pages.
   // Page 0: Cover (Front)
@@ -66,10 +67,21 @@ export default function MenuBook({ categories }: MenuBookProps) {
     return num.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
   };
 
+  const getImageUrl = (imageUrl?: string) => {
+    if (!imageUrl) return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=800&auto=format&fit=crop';
+    return imageUrl.startsWith('http') || imageUrl.startsWith('/') ? imageUrl : `/uploads/${imageUrl}`;
+  };
+
+  const activeMobileCategory =
+    categories.find((cat) => cat.id === activeMobileCategoryId) || categories[0];
+  const activeMobileItems = activeMobileCategory?.menuItems || [];
+  const highlightedMobileItem =
+    activeMobileItems.find((item) => item.isFeatured) || activeMobileItems[0];
+
   return (
     <div className="w-full">
-      {/* Category Quick Navigation Tabs (For both desktop & mobile) */}
-      <div className="flex flex-wrap justify-center gap-2 md:gap-3 mb-10 max-w-4xl mx-auto px-4">
+      {/* Category Quick Navigation Tabs (Desktop) */}
+      <div className="hidden lg:flex flex-wrap justify-center gap-2 md:gap-3 mb-10 max-w-4xl mx-auto px-4">
         <button
           onClick={() => setCurrentPage(0)}
           className={`px-4 py-2 rounded-full text-xs md:text-sm font-semibold tracking-wider transition uppercase ${
@@ -182,7 +194,169 @@ export default function MenuBook({ categories }: MenuBookProps) {
       {/* ======================================================== */}
       {/* MOBILE SCROLL LIST VIEW - DISPLAY ON MOBILE/TABLET (<lg) */}
       {/* ======================================================== */}
-      <div className="lg:hidden px-4 space-y-12">
+      <div className="lg:hidden px-4">
+        <div className="mx-auto max-w-2xl overflow-hidden rounded-[28px] border border-quecan-brown/10 bg-white shadow-warm">
+          <div className="bg-quecan-dark px-5 py-5 text-quecan-cream">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-quecan-golden">
+                  Thực đơn mobile
+                </p>
+                <h3 className="mt-1 font-serif text-2xl font-bold leading-tight">
+                  Chọn mâm cơm yêu thích
+                </h3>
+              </div>
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-quecan-golden text-quecan-dark">
+                <Utensils className="h-5 w-5" />
+              </div>
+            </div>
+
+            <div className="mt-5 -mx-5 overflow-x-auto px-5 pb-1">
+              <div className="flex min-w-max gap-2">
+                {categories.map((cat) => {
+                  const isActive = cat.id === activeMobileCategory?.id;
+                  const itemCount = cat.menuItems?.length || 0;
+
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setActiveMobileCategoryId(cat.id)}
+                      className={`min-w-[120px] rounded-2xl border px-4 py-3 text-left transition ${
+                        isActive
+                          ? 'border-quecan-golden bg-quecan-golden text-quecan-dark shadow-lg'
+                          : 'border-white/10 bg-white/10 text-quecan-cream hover:bg-white/15'
+                      }`}
+                    >
+                      <span className="block max-w-[140px] truncate text-sm font-bold leading-tight">
+                        {cat.name}
+                      </span>
+                      <span className={`mt-1 block text-[11px] ${isActive ? 'text-quecan-dark/65' : 'text-quecan-cream/60'}`}>
+                        {itemCount} món
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {activeMobileCategory && (
+            <div className="space-y-5 bg-[#fff8eb] px-4 py-5">
+              <div className="flex items-start justify-between gap-3 rounded-2xl border border-quecan-brown/10 bg-white px-4 py-3">
+                <div>
+                  <h4 className="font-serif text-xl font-bold text-quecan-brown">
+                    {activeMobileCategory.name}
+                  </h4>
+                  {activeMobileCategory.description && (
+                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-quecan-brown/65">
+                      {activeMobileCategory.description}
+                    </p>
+                  )}
+                </div>
+                <span className="rounded-full bg-quecan-orange/10 px-3 py-1 text-xs font-bold text-quecan-orange">
+                  {activeMobileItems.length} món
+                </span>
+              </div>
+
+              {highlightedMobileItem && (
+                <div className="relative overflow-hidden rounded-3xl bg-quecan-dark text-white shadow-warm">
+                  <img
+                    src={getImageUrl(highlightedMobileItem.imageUrl)}
+                    alt={highlightedMobileItem.name}
+                    className="h-56 w-full object-cover opacity-75"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=800&auto=format&fit=crop';
+                    }}
+                  />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-5">
+                    <div className="mb-3 inline-flex items-center gap-1 rounded-full bg-quecan-golden px-3 py-1 text-xs font-bold text-quecan-dark">
+                      <Star className="h-3.5 w-3.5 fill-current" />
+                      Gợi ý hôm nay
+                    </div>
+                    <h4 className="font-serif text-2xl font-bold leading-tight">
+                      {highlightedMobileItem.name}
+                    </h4>
+                    <div className="mt-2 flex items-end justify-between gap-3">
+                      <p className="line-clamp-2 text-sm leading-relaxed text-white/80">
+                        {highlightedMobileItem.shortDescription || highlightedMobileItem.description}
+                      </p>
+                      <div className="shrink-0 text-right">
+                        {highlightedMobileItem.salePrice ? (
+                          <>
+                            <div className="text-xs text-white/45 line-through">{formatPrice(highlightedMobileItem.price)}</div>
+                            <div className="text-lg font-bold text-quecan-golden">{formatPrice(highlightedMobileItem.salePrice)}</div>
+                          </>
+                        ) : (
+                          <div className="text-lg font-bold text-quecan-golden">{formatPrice(highlightedMobileItem.price)}</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {activeMobileItems.length > 0 ? (
+                  activeMobileItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex gap-3 rounded-2xl border border-quecan-brown/10 bg-white p-3 shadow-sm"
+                    >
+                      <img
+                        src={getImageUrl(item.imageUrl)}
+                        alt={item.name}
+                        className="h-24 w-24 shrink-0 rounded-xl border border-quecan-beige object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=200&auto=format&fit=crop';
+                        }}
+                      />
+                      <div className="flex min-w-0 flex-1 flex-col justify-between">
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="line-clamp-2 text-sm font-bold leading-snug text-quecan-brown">
+                              {item.name}
+                            </h4>
+                            {item.isFeatured && (
+                              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                                Hot
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-quecan-brown/65">
+                            {item.shortDescription || item.description}
+                          </p>
+                        </div>
+
+                        <div className="mt-2 flex items-center justify-between border-t border-dashed border-quecan-beige pt-2">
+                          {item.salePrice ? (
+                            <div>
+                              <div className="text-[11px] text-stone-400 line-through">{formatPrice(item.price)}</div>
+                              <div className="text-sm font-bold text-quecan-orange">{formatPrice(item.salePrice)}</div>
+                            </div>
+                          ) : (
+                            <div className="text-sm font-bold text-quecan-brown">{formatPrice(item.price)}</div>
+                          )}
+                          <span className="rounded-full border border-quecan-orange/25 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-quecan-orange">
+                            Chi tiết
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-quecan-brown/20 bg-white p-6 text-center text-sm text-quecan-brown/60">
+                    Chưa có món ăn nào trong danh mục này.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {false && (
+      <div className="hidden">
         {categories.map((cat) => (
           <div key={cat.id} className="space-y-6 scroll-mt-24">
             <div className="text-center relative">
@@ -241,6 +415,7 @@ export default function MenuBook({ categories }: MenuBookProps) {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }
