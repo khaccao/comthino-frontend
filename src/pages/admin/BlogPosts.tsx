@@ -26,24 +26,30 @@ export default function BlogPosts() {
   const [posts, setPosts] = useState<PaginatedResponse<BlogPost> | null>(null);
   const [filters, setFilters] = useState({ keyword: '', categoryId: '', status: '', page: 1 });
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const loadData = async () => {
+  const loadData = async (nextFilters = filters) => {
     setIsLoading(true);
+    setErrorMsg('');
     try {
       const [catRes, postRes] = await Promise.all([
         adminApi.getBlogCategories(),
         adminApi.getBlogPosts({
-          page: filters.page,
+          page: nextFilters.page,
           limit: 10,
-          keyword: filters.keyword || undefined,
-          categoryId: filters.categoryId || undefined,
-          status: filters.status || undefined,
+          keyword: nextFilters.keyword || undefined,
+          categoryId: nextFilters.categoryId || undefined,
+          status: nextFilters.status || undefined,
           sortBy: 'createdAt',
           sortOrder: 'desc',
         }),
       ]);
       if (catRes.success) setCategories(catRes.data);
       if (postRes.success) setPosts(postRes.data);
+      else setErrorMsg(postRes.message || 'Không tải được bài viết.');
+    } catch (error: any) {
+      setPosts(null);
+      setErrorMsg(error.response?.data?.message || 'Không tải được bài viết.');
     } finally {
       setIsLoading(false);
     }
@@ -56,8 +62,9 @@ export default function BlogPosts() {
 
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
-    setFilters((prev) => ({ ...prev, page: 1 }));
-    loadData();
+    const nextFilters = { ...filters, page: 1 };
+    setFilters(nextFilters);
+    loadData(nextFilters);
   };
 
   const publish = async (id: string) => {
@@ -122,6 +129,12 @@ export default function BlogPosts() {
           <button type="submit" className="rounded-lg bg-stone-900 px-4 py-2 text-sm font-bold text-white">Lọc</button>
         </form>
       </div>
+
+      {errorMsg && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">
+          {errorMsg}
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-stone-200/60 bg-white shadow-warm">
         <div className="overflow-x-auto">
