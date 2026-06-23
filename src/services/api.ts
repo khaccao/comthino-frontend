@@ -58,6 +58,12 @@ export const publicApi = {
   getFeaturedBlogPosts: () => api.get('/public/blog/posts/featured').then(res => res.data),
   getBlogPost: (slug: string) => api.get(`/public/blog/posts/${slug}`).then(res => res.data),
   getBlogPostsByCategory: (slug: string, params?: any) => api.get(`/public/blog/posts/category/${slug}`, { params }).then(res => res.data),
+  
+  // SEO Public APIs
+  getSeoPages: () => api.get('/public/seo-pages').then(res => res.data),
+  getSeoPageBySlug: (slug: string) => api.get(`/public/seo-pages/${slug}`).then(res => res.data),
+  getFAQs: () => api.get('/public/faqs').then(res => res.data),
+  getReviews: () => api.get('/public/reviews').then(res => res.data),
 };
 
 // --- AUTH APIs ---
@@ -131,6 +137,7 @@ export const adminApi = {
   // Media File Manager
   getMedia: () => api.get('/admin/media').then(res => res.data),
   deleteMedia: (id: string) => api.delete(`/admin/media/${id}`).then(res => res.data),
+  updateMedia: (id: string, data: any) => api.put(`/admin/media/${id}`, data).then(res => res.data),
   uploadImage: (formData: FormData) => api.post('/admin/upload/image', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }).then(res => res.data),
@@ -147,4 +154,21 @@ export const adminApi = {
   deleteBlogPost: (id: string) => api.delete(`/admin/blog/posts/${id}`).then(res => res.data),
   publishBlogPost: (id: string) => api.post(`/admin/blog/posts/${id}/publish`).then(res => res.data),
   unpublishBlogPost: (id: string) => api.post(`/admin/blog/posts/${id}/unpublish`).then(res => res.data),
+
+  // SEO Manager
+  getSeoPages: () => api.get('/admin/seo-pages').then(res => res.data),
+  getSeoPage: (id: string) => api.get(`/admin/seo-pages/${id}`).then(res => res.data),
+  createSeoPage: (data: any) => api.post('/admin/seo-pages', data).then(res => res.data),
+  updateSeoPage: (id: string, data: any) => api.put(`/admin/seo-pages/${id}`, data).then(res => res.data),
+  deleteSeoPage: (id: string) => api.delete(`/admin/seo-pages/${id}`).then(res => res.data),
+
+  getFAQs: () => api.get('/admin/faqs').then(res => res.data),
+  createFAQ: (data: any) => api.post('/admin/faqs', data).then(res => res.data),
+  updateFAQ: (id: string, data: any) => api.put(`/admin/faqs/${id}`, data).then(res => res.data),
+  deleteFAQ: (id: string) => api.delete(`/admin/faqs/${id}`).then(res => res.data),
+
+  getReviews: () => api.get('/admin/reviews').then(res => res.data),
+  createReview: (data: any) => api.post('/admin/reviews', data).then(res => res.data),
+  updateReview: (id: string, data: any) => api.put(`/admin/reviews/${id}`, data).then(res => res.data),
+  deleteReview: (id: string) => api.delete(`/admin/reviews/${id}`).then(res => res.data),
 };

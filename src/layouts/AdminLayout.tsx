@@ -18,7 +18,8 @@ import {
   User as UserIcon,
   X,
   Newspaper,
-  PenLine
+  PenLine,
+  Globe
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -65,6 +66,10 @@ export default function AdminLayout() {
     { label: 'Đánh giá khách', path: '/admin/testimonials', icon: MessageSquare },
     { label: 'Hòm thư liên hệ', path: '/admin/contact-messages', icon: MessageSquare },
     { label: 'Quản lý Media', path: '/admin/media', icon: FileImage },
+    // SEO Manager
+    { label: 'Landing Pages (SEO)', path: '/admin/seo-pages', icon: Globe },
+    { label: 'Quản lý FAQs', path: '/admin/faqs', icon: Sparkles },
+    { label: 'Đánh giá (Reviews)', path: '/admin/reviews', icon: MessageSquare },
   ];
 
   return (

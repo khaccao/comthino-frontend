@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage';
 import BlogListPage from './pages/BlogListPage';
 import BlogCategoryPage from './pages/BlogCategoryPage';
 import BlogDetailPage from './pages/BlogDetailPage';
+import SeoLandingPage from './pages/SeoLandingPage';
 
 // Admin pages
 import Login from './pages/admin/Login';
@@ -25,6 +26,10 @@ import MediaManager from './pages/admin/MediaManager';
 import BlogCategories from './pages/admin/BlogCategories';
 import BlogPosts from './pages/admin/BlogPosts';
 import BlogPostEditor from './pages/admin/BlogPostEditor';
+import SeoPages from './pages/admin/SeoPages';
+import SeoPageEditor from './pages/admin/SeoPageEditor';
+import FAQsManager from './pages/admin/FAQsManager';
+import ReviewsManager from './pages/admin/ReviewsManager';
 
 export default function App() {
   return (
@@ -36,6 +41,8 @@ export default function App() {
           <Route path="tin-tuc" element={<BlogListPage />} />
           <Route path="tin-tuc/danh-muc/:slug" element={<BlogCategoryPage />} />
           <Route path="tin-tuc/:slug" element={<BlogDetailPage />} />
+          {/* SEO Landing Pages - catch-all for slugs */}
+          <Route path=":slug" element={<SeoLandingPage />} />
         </Route>
 
         {/* ADMIN LOGIN */}
@@ -60,6 +67,12 @@ export default function App() {
           <Route path="blog/posts" element={<BlogPosts />} />
           <Route path="blog/posts/new" element={<BlogPostEditor />} />
           <Route path="blog/posts/:id/edit" element={<BlogPostEditor />} />
+          {/* SEO Routes */}
+          <Route path="seo-pages" element={<SeoPages />} />
+          <Route path="seo-pages/new" element={<SeoPageEditor />} />
+          <Route path="seo-pages/:id/edit" element={<SeoPageEditor />} />
+          <Route path="faqs" element={<FAQsManager />} />
+          <Route path="reviews" element={<ReviewsManager />} />
         </Route>
 
         {/* CATCH ALL FALLBACK */}
@@ -68,3 +81,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
