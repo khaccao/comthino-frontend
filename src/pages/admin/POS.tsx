@@ -140,6 +140,9 @@ const formatGrowth = (value: number) => `${value >= 0 ? '+' : ''}${value.toLocal
 
 const replaceToken = (content: string, token: string, value: string) => content.split(token).join(value);
 
+const isOrderInUse = (order?: PosOrder | null) =>
+  Boolean(order && order.Status !== 'PAID' && (order.Status === 'ORDERED' || Number(order.ItemCount || 0) > 0 || Number(order.items?.length || 0) > 0));
+
 const tabs = [
   { key: 'pos', label: 'Máy POS', icon: Utensils },
   { key: 'setup', label: 'Setup bàn/menu', icon: Edit2 },
@@ -262,9 +265,17 @@ export default function POS() {
 
   const tableOrderMap = useMemo(() => {
     const result = new Map<string, PosOrder>();
-    openOrders.forEach((order) => result.set(order.TableId, order));
+    openOrders.filter(isOrderInUse).forEach((order) => result.set(order.TableId, order));
     return result;
   }, [openOrders]);
+
+  const syncOpenOrder = (order: PosOrder) => {
+    setOpenOrders((orders) => {
+      const rest = orders.filter((item) => item.Id !== order.Id);
+      if (!isOrderInUse(order)) return rest;
+      return [order, ...rest];
+    });
+  };
 
   const filteredItems = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
@@ -349,10 +360,7 @@ export default function POS() {
       const res = await adminApi.openPosOrder(table.Id);
       if (res.success) {
         setCurrentOrder(res.data);
-        setOpenOrders((orders) => {
-          const rest = orders.filter((order) => order.Id !== res.data.Id);
-          return [res.data, ...rest];
-        });
+        syncOpenOrder(res.data);
       }
     } catch (error) {
       console.error(error);
@@ -365,11 +373,7 @@ export default function POS() {
     const res = await adminApi.getPosOrder(orderId);
     if (res.success) {
       setCurrentOrder(res.data);
-      setOpenOrders((orders) => {
-        const rest = orders.filter((order) => order.Id !== res.data.Id);
-        if (res.data.Status === 'PAID') return rest;
-        return [res.data, ...rest];
-      });
+      syncOpenOrder(res.data);
     }
   };
 
@@ -378,7 +382,10 @@ export default function POS() {
     setIsSaving(true);
     try {
       const res = await adminApi.addPosOrderItem(currentOrder.Id, { menuItemId: item.Id, quantity: 1 });
-      if (res.success) setCurrentOrder(res.data);
+      if (res.success) {
+        setCurrentOrder(res.data);
+        syncOpenOrder(res.data);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -390,13 +397,19 @@ export default function POS() {
     const unitPrice = patch.UnitPrice ?? item.UnitPrice;
     const note = patch.Note ?? item.Note ?? '';
     const res = await adminApi.updatePosOrderItem(currentOrder.Id, item.Id, { quantity, unitPrice, note });
-    if (res.success) setCurrentOrder(res.data);
+    if (res.success) {
+      setCurrentOrder(res.data);
+      syncOpenOrder(res.data);
+    }
   };
 
   const deleteItem = async (itemId: string) => {
     if (!currentOrder) return;
     const res = await adminApi.deletePosOrderItem(currentOrder.Id, itemId);
-    if (res.success) setCurrentOrder(res.data);
+    if (res.success) {
+      setCurrentOrder(res.data);
+      syncOpenOrder(res.data);
+    }
   };
 
   const saveOrderMeta = async () => {
@@ -407,6 +420,7 @@ export default function POS() {
     });
     if (res.success) {
       setCurrentOrder(res.data);
+      syncOpenOrder(res.data);
       setToast('Đã cập nhật giảm giá.');
     }
   };
@@ -416,6 +430,7 @@ export default function POS() {
     const res = await adminApi.confirmPosKitchen(currentOrder.Id);
     if (res.success) {
       setCurrentOrder(res.data);
+      syncOpenOrder(res.data);
       setToast('Đã xác nhận order gửi bếp.');
     }
   };
@@ -575,6 +590,51 @@ export default function POS() {
   const maxHourlyRevenue = Math.max(1, ...hourlyData.map((item) => item.Revenue));
   const revenueGrowth = calcGrowth(dashboard?.summary.Revenue, dashboard?.summary.PreviousRevenue);
   const paidOrdersGrowth = calcGrowth(dashboard?.summary.PaidOrders, dashboard?.summary.PreviousPaidOrders);
+  const templatePreviewHtml = useMemo(() => {
+    const isKitchen = editingTemplate?.Code === 'KITCHEN';
+    const sampleItems = isKitchen
+      ? `<tr><td>Cơm 60K thịt rang</td><td>Ít cay</td><td>60.000 đ</td></tr>
+         <tr><td>Cá trắm kho riềng</td><td></td><td>65.000 đ</td></tr>`
+      : `<tr><td>Cơm 60K thịt rang</td><td>1</td><td>60.000 đ</td><td>60.000 đ</td></tr>
+         <tr><td>Cá trắm kho riềng</td><td>1</td><td>65.000 đ</td><td>65.000 đ</td></tr>`;
+    let html = editingTemplate?.Content || '<section class="pos-print"><header><b>Chọn mẫu in</b></header></section>';
+    html = replaceToken(html, '{{OrderNo}}', 'POS260705-001');
+    html = replaceToken(html, '{{TableName}}', 'H2');
+    html = replaceToken(html, '{{CreatedAt}}', '11:03 05/07/2026');
+    html = replaceToken(html, '{{PrintType}}', isKitchen ? 'Bếp' : editingTemplate?.Code === 'PAYMENT' ? 'Thanh toán' : 'Tạm tính');
+    html = replaceToken(html, '{{Items}}', sampleItems);
+    html = replaceToken(html, '{{OrderNote}}', 'Khách ngồi bàn H2');
+    html = replaceToken(html, '{{SubTotal}}', '125.000 đ');
+    html = replaceToken(html, '{{ServiceCharge}}', '0 đ');
+    html = replaceToken(html, '{{VatAmount}}', '0 đ');
+    html = replaceToken(html, '{{DiscountAmount}}', '0 đ');
+    html = replaceToken(html, '{{TotalAmount}}', '125.000 đ');
+    html = replaceToken(
+      html,
+      '{{PaymentQrUrl}}',
+      'https://img.vietqr.io/image/970436-19035748277012-compact2.png?amount=125000&addInfo=POS260705-001&accountName=NGUYEN%20KHAC%20CAO',
+    );
+    return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  body{margin:0;background:#f4f1eb;font-family:Arial,sans-serif;color:#111}
+  .preview-wrap{min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:18px}
+  .pos-print{width:80mm;background:#fff;border:1px solid #1f2937;padding:4mm;box-sizing:border-box}
+  .pos-print header{text-align:center;font-size:13px;line-height:1.35}
+  .pos-print table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11px}
+  .pos-print th,.pos-print td{border-bottom:1px dashed #cbd5e1;padding:3px 2px;text-align:left;vertical-align:top}
+  .pos-print th:nth-child(n+2),.pos-print td:nth-child(n+2){text-align:right}
+  .pos-print footer{margin-top:8px;font-size:12px}
+  .pos-print footer div{display:flex;justify-content:space-between;gap:8px;margin:3px 0}
+  .pos-print .total{border-top:1px solid #111;padding-top:6px;font-weight:700}
+  .pos-print img{display:block;max-width:46mm;max-height:46mm;margin:8px auto 3px;object-fit:contain}
+</style>
+</head>
+<body><div class="preview-wrap">${html}</div></body>
+</html>`;
+  }, [editingTemplate?.Code, editingTemplate?.Content]);
 
   if (isLoading) {
     return (
@@ -1006,11 +1066,27 @@ export default function POS() {
                 Lưu mẫu
               </button>
             </div>
-            <textarea
-              value={editingTemplate?.Content || ''}
-              onChange={(e) => editingTemplate && setEditingTemplate({ ...editingTemplate, Content: e.target.value })}
-              className="mt-4 min-h-[520px] w-full rounded-xl border border-stone-200 bg-stone-950 p-4 font-mono text-sm text-amber-50 outline-none focus:border-amber-500"
-            />
+            <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+              <textarea
+                value={editingTemplate?.Content || ''}
+                onChange={(e) => editingTemplate && setEditingTemplate({ ...editingTemplate, Content: e.target.value })}
+                className="min-h-[620px] w-full rounded-xl border border-stone-200 bg-stone-950 p-4 font-mono text-sm text-amber-50 outline-none focus:border-amber-500"
+              />
+              <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Hình ảnh mẫu in</p>
+                    <h3 className="text-sm font-extrabold text-stone-900">Preview 80mm</h3>
+                  </div>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-700">Dữ liệu mẫu</span>
+                </div>
+                <iframe
+                  title="POS print template preview"
+                  srcDoc={templatePreviewHtml}
+                  className="h-[620px] w-full rounded-lg border border-stone-200 bg-white"
+                />
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1046,21 +1122,23 @@ export default function POS() {
                 <p className="mt-1 text-sm text-stone-500">Tính theo thời điểm thanh toán.</p>
               </div>
               <div className="overflow-x-auto p-4">
-                <div className="flex min-w-[920px] items-end gap-1">
+                <div className="grid min-w-[1040px] gap-2" style={{ gridTemplateColumns: 'repeat(24, minmax(36px, 1fr))' }}>
                   {hourlyData.map((item) => {
-                    const height = Math.max(10, Math.round((item.Revenue / maxHourlyRevenue) * 220));
+                    const height = Math.max(8, Math.round((item.Revenue / maxHourlyRevenue) * 210));
                     const active = item.Revenue > 0;
                     return (
-                      <div key={item.Hour} className="flex flex-1 flex-col items-center gap-2">
-                        <div className="flex h-60 w-full items-end rounded-full bg-stone-100">
+                      <div key={item.Hour} className="flex min-w-0 flex-col items-center">
+                        <div className="flex h-56 w-full items-end overflow-hidden rounded-full bg-stone-100">
                           <div
                             className={`w-full rounded-full transition ${active ? 'bg-gradient-to-t from-emerald-700 to-emerald-400' : 'bg-stone-200'}`}
                             style={{ height }}
                             title={`${item.Hour}:00 - ${formatVnd(item.Revenue)}`}
                           />
                         </div>
-                        <span className="text-xs font-extrabold text-stone-700">{item.Hour.toString().padStart(2, '0')}</span>
-                        <span className="h-14 -rotate-90 whitespace-nowrap text-[11px] font-semibold text-stone-500">{formatVnd(item.Revenue)}</span>
+                        <span className="mt-2 text-xs font-extrabold tabular-nums text-stone-700">{item.Hour.toString().padStart(2, '0')}</span>
+                        <span className="mt-1 h-8 w-full text-center text-[10px] font-bold leading-tight text-stone-500">
+                          {formatVnd(item.Revenue)}
+                        </span>
                       </div>
                     );
                   })}
