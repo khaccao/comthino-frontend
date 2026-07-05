@@ -58,6 +58,7 @@ export default function AdminLayout() {
     { label: 'Các phần trang chủ', path: '/admin/home-sections', icon: FolderOpen },
     { label: 'Danh mục món', path: '/admin/menu-categories', icon: Layers },
     { label: 'Món ăn', path: '/admin/menu-items', icon: Utensils },
+    { label: 'Máy POS', path: '/admin/pos', icon: Utensils },
     { label: 'Danh mục tin', path: '/admin/blog/categories', icon: Newspaper },
     { label: 'Bài viết blog', path: '/admin/blog/posts', icon: Newspaper },
     { label: 'Viết bài mới', path: '/admin/blog/posts/new', icon: PenLine },

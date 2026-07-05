@@ -30,6 +30,7 @@ import SeoPages from './pages/admin/SeoPages';
 import SeoPageEditor from './pages/admin/SeoPageEditor';
 import FAQsManager from './pages/admin/FAQsManager';
 import ReviewsManager from './pages/admin/ReviewsManager';
+import POS from './pages/admin/POS';
 
 export default function App() {
   return (
@@ -73,6 +74,7 @@ export default function App() {
           <Route path="seo-pages/:id/edit" element={<SeoPageEditor />} />
           <Route path="faqs" element={<FAQsManager />} />
           <Route path="reviews" element={<ReviewsManager />} />
+          <Route path="pos" element={<POS />} />
         </Route>
 
         {/* CATCH ALL FALLBACK */}
@@ -81,4 +83,3 @@ export default function App() {
     </BrowserRouter>
   );
 }
-

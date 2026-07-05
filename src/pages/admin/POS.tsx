@@ -1,0 +1,975 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  BarChart3,
+  Check,
+  CreditCard,
+  Edit2,
+  Minus,
+  Plus,
+  Printer,
+  RefreshCw,
+  Save,
+  Search,
+  Trash2,
+  Utensils,
+} from 'lucide-react';
+import { adminApi } from '../../services/api';
+
+type PosTable = {
+  Id: string;
+  Code: string;
+  Name: string;
+  AreaName?: string;
+  SeatCount: number;
+  SortOrder: number;
+  Status: 'AVAILABLE' | 'OCCUPIED';
+  IsActive: boolean;
+};
+
+type PosCategory = {
+  Id: string;
+  Name: string;
+  Description?: string;
+  SortOrder: number;
+  IsActive: boolean;
+};
+
+type PosMenuItem = {
+  Id: string;
+  CategoryId?: string;
+  Code: string;
+  Name: string;
+  Unit: string;
+  Price: number;
+  ImageUrl?: string;
+  Description?: string;
+  SortOrder: number;
+  IsActive: boolean;
+};
+
+type PosOrderItem = {
+  Id: string;
+  OrderId: string;
+  MenuItemId?: string;
+  Code?: string;
+  Name: string;
+  UnitPrice: number;
+  Quantity: number;
+  Note?: string;
+  Status: 'NEW' | 'SENT' | 'CHANGED';
+};
+
+type PosOrder = {
+  Id: string;
+  OrderNo: string;
+  TableId: string;
+  TableName: string;
+  Status: 'OPEN' | 'ORDERED' | 'PAID' | 'CANCELLED';
+  Note?: string;
+  SubTotal: number;
+  DiscountAmount: number;
+  ServiceCharge: number;
+  VatAmount: number;
+  TotalAmount: number;
+  PaymentMethod?: string;
+  CreatedAt: string;
+  PaidAt?: string;
+  ItemCount?: number;
+  items?: PosOrderItem[];
+};
+
+type PrintTemplate = {
+  Code: string;
+  Name: string;
+  Content: string;
+};
+
+type PosDashboardData = {
+  summary: {
+    Revenue?: number;
+    PaidOrders?: number;
+    OpenOrders?: number;
+    AverageBill?: number;
+  };
+  topItems: Array<{ Name: string; Quantity: number; Amount: number }>;
+  hourly: Array<{ Hour: number; Revenue: number; Orders: number }>;
+};
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+const formatVnd = (value: number | string | null | undefined) =>
+  Number(value || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+
+const formatDateTime = (value?: string) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
+const replaceToken = (content: string, token: string, value: string) => content.split(token).join(value);
+
+const tabs = [
+  { key: 'pos', label: 'Máy POS', icon: Utensils },
+  { key: 'setup', label: 'Setup bàn/menu', icon: Edit2 },
+  { key: 'templates', label: 'Mẫu in', icon: Printer },
+  { key: 'dashboard', label: 'Doanh thu', icon: BarChart3 },
+] as const;
+
+type TabKey = typeof tabs[number]['key'];
+
+const emptyTableForm = { code: '', name: '', areaName: 'Nhà hàng', seatCount: 4, sortOrder: 0, isActive: true };
+const emptyCategoryForm = { name: '', description: '', sortOrder: 0, isActive: true };
+const emptyMenuForm = {
+  code: '',
+  name: '',
+  categoryId: '',
+  unit: 'phần',
+  price: 0,
+  imageUrl: '',
+  description: '',
+  sortOrder: 0,
+  isActive: true,
+};
+
+export default function POS() {
+  const [activeTab, setActiveTab] = useState<TabKey>('pos');
+  const [tables, setTables] = useState<PosTable[]>([]);
+  const [categories, setCategories] = useState<PosCategory[]>([]);
+  const [menuItems, setMenuItems] = useState<PosMenuItem[]>([]);
+  const [openOrders, setOpenOrders] = useState<PosOrder[]>([]);
+  const [templates, setTemplates] = useState<PrintTemplate[]>([]);
+  const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
+  const [currentOrder, setCurrentOrder] = useState<PosOrder | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [menuPage, setMenuPage] = useState(1);
+  const [discount, setDiscount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState('');
+  const [historyDate, setHistoryDate] = useState(today());
+  const [history, setHistory] = useState<PosOrder[]>([]);
+  const [selectedHistoryOrder, setSelectedHistoryOrder] = useState<PosOrder | null>(null);
+  const [dashboard, setDashboard] = useState<PosDashboardData | null>(null);
+  const [tableForm, setTableForm] = useState(emptyTableForm);
+  const [tableEditingId, setTableEditingId] = useState<string | null>(null);
+  const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
+  const [categoryEditingId, setCategoryEditingId] = useState<string | null>(null);
+  const [menuForm, setMenuForm] = useState(emptyMenuForm);
+  const [menuEditingId, setMenuEditingId] = useState<string | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<PrintTemplate | null>(null);
+
+  const loadBootstrap = async () => {
+    setIsLoading(true);
+    try {
+      const res = await adminApi.getPosBootstrap();
+      if (res.success) {
+        setTables(res.data.tables || []);
+        setCategories(res.data.categories || []);
+        setMenuItems(res.data.menuItems || []);
+        setOpenOrders(res.data.openOrders || []);
+        setTemplates(res.data.templates || []);
+        setEditingTemplate((res.data.templates || [])[0] || null);
+      }
+    } catch (error) {
+      console.error(error);
+      setToast('Không tải được dữ liệu POS. Kiểm tra cấu hình CaoConnection ở backend.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadReports = async () => {
+    try {
+      const [historyRes, dashboardRes] = await Promise.all([
+        adminApi.getPosHistory(historyDate),
+        adminApi.getPosDashboard(historyDate),
+      ]);
+      if (historyRes.success) setHistory(historyRes.data || []);
+      if (dashboardRes.success) setDashboard(dashboardRes.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    loadBootstrap();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'dashboard') loadReports();
+  }, [activeTab, historyDate]);
+
+  useEffect(() => {
+    setMenuPage(1);
+  }, [selectedCategory, searchTerm]);
+
+  useEffect(() => {
+    setDiscount(Number(currentOrder?.DiscountAmount || 0));
+  }, [currentOrder?.Id, currentOrder?.DiscountAmount]);
+
+  const tableOrderMap = useMemo(() => {
+    const result = new Map<string, PosOrder>();
+    openOrders.forEach((order) => result.set(order.TableId, order));
+    return result;
+  }, [openOrders]);
+
+  const filteredItems = useMemo(() => {
+    const keyword = searchTerm.trim().toLowerCase();
+    return menuItems.filter((item) => {
+      const matchCategory = selectedCategory === 'ALL' || item.CategoryId === selectedCategory;
+      const matchKeyword =
+        !keyword ||
+        item.Name.toLowerCase().includes(keyword) ||
+        item.Code.toLowerCase().includes(keyword);
+      return matchCategory && matchKeyword;
+    });
+  }, [menuItems, searchTerm, selectedCategory]);
+
+  const pageSize = 10;
+  const pagedItems = filteredItems.slice((menuPage - 1) * pageSize, menuPage * pageSize);
+  const maxMenuPage = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+
+  const hasKitchenChanges = currentOrder?.items?.some((item) => item.Status === 'NEW' || item.Status === 'CHANGED');
+
+  const selectTable = async (table: PosTable) => {
+    setSelectedTable(table);
+    setCurrentOrder(null);
+    try {
+      const res = await adminApi.openPosOrder(table.Id);
+      if (res.success) {
+        setCurrentOrder(res.data);
+        setOpenOrders((orders) => {
+          const rest = orders.filter((order) => order.Id !== res.data.Id);
+          return [res.data, ...rest];
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setToast('Không mở được bàn.');
+    }
+  };
+
+  const refreshCurrentOrder = async (orderId = currentOrder?.Id) => {
+    if (!orderId) return;
+    const res = await adminApi.getPosOrder(orderId);
+    if (res.success) {
+      setCurrentOrder(res.data);
+      setOpenOrders((orders) => {
+        const rest = orders.filter((order) => order.Id !== res.data.Id);
+        if (res.data.Status === 'PAID') return rest;
+        return [res.data, ...rest];
+      });
+    }
+  };
+
+  const addItem = async (item: PosMenuItem) => {
+    if (!currentOrder) return;
+    setIsSaving(true);
+    try {
+      const res = await adminApi.addPosOrderItem(currentOrder.Id, { menuItemId: item.Id, quantity: 1 });
+      if (res.success) setCurrentOrder(res.data);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateItem = async (item: PosOrderItem, patch: Partial<PosOrderItem>) => {
+    if (!currentOrder) return;
+    const quantity = patch.Quantity ?? item.Quantity;
+    const unitPrice = patch.UnitPrice ?? item.UnitPrice;
+    const note = patch.Note ?? item.Note ?? '';
+    const res = await adminApi.updatePosOrderItem(currentOrder.Id, item.Id, { quantity, unitPrice, note });
+    if (res.success) setCurrentOrder(res.data);
+  };
+
+  const deleteItem = async (itemId: string) => {
+    if (!currentOrder) return;
+    const res = await adminApi.deletePosOrderItem(currentOrder.Id, itemId);
+    if (res.success) setCurrentOrder(res.data);
+  };
+
+  const saveOrderMeta = async () => {
+    if (!currentOrder) return;
+    const res = await adminApi.updatePosOrder(currentOrder.Id, {
+      note: currentOrder.Note || '',
+      discountAmount: discount,
+    });
+    if (res.success) {
+      setCurrentOrder(res.data);
+      setToast('Đã cập nhật giảm giá.');
+    }
+  };
+
+  const confirmKitchen = async () => {
+    if (!currentOrder || !currentOrder.items?.length) return;
+    const res = await adminApi.confirmPosKitchen(currentOrder.Id);
+    if (res.success) {
+      setCurrentOrder(res.data);
+      setToast('Đã xác nhận order gửi bếp.');
+    }
+  };
+
+  const payOrder = async () => {
+    if (!currentOrder || !currentOrder.items?.length) return;
+    const res = await adminApi.payPosOrder(currentOrder.Id, 'QR_OR_CASH');
+    if (res.success) {
+      setToast(`Đã thanh toán ${currentOrder.OrderNo}.`);
+      setCurrentOrder(null);
+      setSelectedTable(null);
+      await loadBootstrap();
+      if (activeTab === 'dashboard') await loadReports();
+    }
+  };
+
+  const printOrder = (type: 'KITCHEN' | 'TEMPORARY' | 'PAYMENT') => {
+    if (!currentOrder) return;
+    const template = templates.find((item) => item.Code === type);
+    const rows = (currentOrder.items || [])
+      .map(
+        (item) =>
+          `<tr><td>${item.Name}${item.Note ? `<br><small>${item.Note}</small>` : ''}</td><td>${item.Quantity}</td><td>${formatVnd(item.UnitPrice)}</td><td>${formatVnd(Number(item.UnitPrice) * Number(item.Quantity))}</td></tr>`,
+      )
+      .join('');
+    let html = template?.Content || '';
+    html = replaceToken(html, '{{OrderNo}}', currentOrder.OrderNo);
+    html = replaceToken(html, '{{TableName}}', currentOrder.TableName);
+    html = replaceToken(html, '{{CreatedAt}}', formatDateTime(currentOrder.CreatedAt));
+    html = replaceToken(html, '{{Items}}', rows);
+    html = replaceToken(html, '{{OrderNote}}', currentOrder.Note || '');
+    html = replaceToken(html, '{{SubTotal}}', formatVnd(currentOrder.SubTotal));
+    html = replaceToken(html, '{{ServiceCharge}}', formatVnd(currentOrder.ServiceCharge));
+    html = replaceToken(html, '{{VatAmount}}', formatVnd(currentOrder.VatAmount));
+    html = replaceToken(html, '{{DiscountAmount}}', formatVnd(currentOrder.DiscountAmount));
+    html = replaceToken(html, '{{TotalAmount}}', formatVnd(currentOrder.TotalAmount));
+    html = replaceToken(html, '{{PaymentQrUrl}}', '');
+    const printWindow = window.open('', '_blank', 'width=420,height=720');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html><head><title>${currentOrder.OrderNo}</title>
+      <style>
+        body{font-family:Arial,sans-serif;margin:0;color:#1c1917}
+        .pos-print{width:72mm;margin:0 auto;padding:5mm}
+        header{text-align:center;display:flex;flex-direction:column;gap:2mm}
+        header b{font-size:16px} header strong{font-size:14px}
+        table{width:100%;border-collapse:collapse;margin-top:4mm;font-size:11px}
+        th,td{border-bottom:1px dashed #999;padding:2mm 0;text-align:left}
+        th:nth-child(n+2),td:nth-child(n+2){text-align:right}
+        footer{margin-top:4mm;font-size:13px}
+        footer div{display:flex;justify-content:space-between;margin:1.5mm 0}
+        .total{font-size:15px;font-weight:700;border-top:1px solid #111;padding-top:2mm}
+        img{display:block;width:38mm;height:38mm;margin:3mm auto;object-fit:contain}
+        .qr-text{text-align:center;font-weight:700;font-size:12px}
+        @page{size:72mm auto;margin:0}
+      </style></head><body>${html}</body></html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+  };
+
+  const saveTable = async () => {
+    if (!tableForm.name.trim()) return;
+    const res = await adminApi.upsertPosTable(tableForm, tableEditingId || undefined);
+    if (res.success) {
+      setTableForm(emptyTableForm);
+      setTableEditingId(null);
+      loadBootstrap();
+    }
+  };
+
+  const saveCategory = async () => {
+    if (!categoryForm.name.trim()) return;
+    const res = await adminApi.upsertPosMenuCategory(categoryForm, categoryEditingId || undefined);
+    if (res.success) {
+      setCategoryForm(emptyCategoryForm);
+      setCategoryEditingId(null);
+      loadBootstrap();
+    }
+  };
+
+  const saveMenuItem = async () => {
+    if (!menuForm.name.trim()) return;
+    const res = await adminApi.upsertPosMenuItem(menuForm, menuEditingId || undefined);
+    if (res.success) {
+      setMenuForm(emptyMenuForm);
+      setMenuEditingId(null);
+      loadBootstrap();
+    }
+  };
+
+  const editTable = (table: PosTable) => {
+    setTableEditingId(table.Id);
+    setTableForm({
+      code: table.Code,
+      name: table.Name,
+      areaName: table.AreaName || '',
+      seatCount: table.SeatCount || 4,
+      sortOrder: table.SortOrder || 0,
+      isActive: table.IsActive,
+    });
+  };
+
+  const editCategory = (category: PosCategory) => {
+    setCategoryEditingId(category.Id);
+    setCategoryForm({
+      name: category.Name,
+      description: category.Description || '',
+      sortOrder: category.SortOrder || 0,
+      isActive: category.IsActive,
+    });
+  };
+
+  const editMenuItem = (item: PosMenuItem) => {
+    setMenuEditingId(item.Id);
+    setMenuForm({
+      code: item.Code,
+      name: item.Name,
+      categoryId: item.CategoryId || '',
+      unit: item.Unit || 'phần',
+      price: Number(item.Price || 0),
+      imageUrl: item.ImageUrl || '',
+      description: item.Description || '',
+      sortOrder: item.SortOrder || 0,
+      isActive: item.IsActive,
+    });
+  };
+
+  const saveTemplate = async () => {
+    if (!editingTemplate) return;
+    const res = await adminApi.updatePosPrintTemplate(editingTemplate.Code, editingTemplate.Content);
+    if (res.success) {
+      setToast('Đã lưu mẫu in.');
+      loadBootstrap();
+    }
+  };
+
+  const openHistoryDetail = async (order: PosOrder) => {
+    const res = await adminApi.getPosOrder(order.Id);
+    if (res.success) setSelectedHistoryOrder(res.data);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-amber-600" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {toast && (
+        <div className="fixed right-5 top-5 z-50 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 shadow-lg">
+          {toast}
+          <button className="ml-4 text-amber-700" onClick={() => setToast('')}>Đóng</button>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-5 shadow-warm lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-700">Com Thi No Restaurant</p>
+          <h1 className="mt-1 text-2xl font-extrabold text-stone-950">Máy POS nhà hàng</h1>
+          <p className="mt-1 text-sm text-stone-500">Chọn bàn, ghi món, xác nhận bếp, in bill và theo dõi doanh thu trong ngày.</p>
+        </div>
+        <button
+          onClick={() => {
+            loadBootstrap();
+            if (activeTab === 'dashboard') loadReports();
+          }}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-bold text-stone-700 transition hover:bg-stone-100"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Tải lại
+        </button>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto rounded-2xl border border-stone-200 bg-white p-2 shadow-warm">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`inline-flex min-w-max items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+                active ? 'bg-amber-600 text-white shadow' : 'text-stone-600 hover:bg-stone-100'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === 'pos' && (
+        <div className="grid gap-4 xl:grid-cols-[250px_minmax(0,1fr)_390px]">
+          <section className="rounded-2xl border border-stone-200 bg-white shadow-warm">
+            <div className="border-b border-stone-100 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Sơ đồ bàn</p>
+              <h2 className="text-xl font-extrabold text-stone-900">{selectedTable ? `Bàn ${selectedTable.Name}` : 'Chọn bàn'}</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3 p-4 xl:grid-cols-1">
+              {tables.map((table) => {
+                const activeOrder = tableOrderMap.get(table.Id);
+                const active = selectedTable?.Id === table.Id;
+                return (
+                  <button
+                    key={table.Id}
+                    onClick={() => selectTable(table)}
+                    className={`rounded-2xl border p-4 text-left transition ${
+                      active
+                        ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200'
+                        : activeOrder
+                          ? 'border-emerald-200 bg-emerald-50 hover:border-emerald-400'
+                          : 'border-stone-200 bg-stone-50 hover:border-amber-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xl font-extrabold text-stone-950">{table.Name}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${activeOrder ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-600'}`}>
+                        {activeOrder ? 'Đang dùng' : 'Trống'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs font-semibold text-stone-500">{table.AreaName || 'Khu vực chính'}</p>
+                    {activeOrder && <p className="mt-1 text-xs text-emerald-700">{activeOrder.OrderNo}</p>}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="min-w-0 rounded-2xl border border-stone-200 bg-white shadow-warm">
+            <div className="border-b border-stone-100 p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Menu order</p>
+                  <h2 className="text-2xl font-extrabold text-stone-950">
+                    {selectedTable ? `Chọn món cho bàn ${selectedTable.Name}` : 'Chọn bàn để bắt đầu'}
+                  </h2>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-[1fr_180px]">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
+                    <input
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Tìm món, mã món..."
+                      className="h-10 w-full rounded-xl border border-stone-200 bg-stone-50 pl-9 pr-3 text-sm outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="h-10 rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm font-semibold outline-none focus:border-amber-500"
+                  >
+                    <option value="ALL">Tất cả nhóm</option>
+                    {categories.map((category) => (
+                      <option key={category.Id} value={category.Id}>{category.Name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 p-4 sm:grid-cols-2 2xl:grid-cols-3">
+              {pagedItems.map((item) => (
+                <button
+                  key={item.Id}
+                  disabled={!currentOrder || isSaving}
+                  onClick={() => addItem(item)}
+                  className="group min-h-[138px] rounded-2xl border border-stone-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-800">{item.Code}</span>
+                    <Plus className="h-5 w-5 text-stone-300 transition group-hover:text-amber-600" />
+                  </div>
+                  <h3 className="mt-3 text-base font-extrabold text-stone-950">{item.Name}</h3>
+                  <p className="mt-2 line-clamp-1 text-sm text-stone-500">{item.Description || item.Unit}</p>
+                  <p className="mt-3 text-xl font-extrabold text-emerald-700">{formatVnd(item.Price)}</p>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-stone-100 px-4 py-3 text-sm">
+              <span className="font-semibold text-stone-500">{filteredItems.length} món, hiển thị 10 món/trang</span>
+              <div className="flex items-center gap-2">
+                <button disabled={menuPage <= 1} onClick={() => setMenuPage((p) => p - 1)} className="rounded-lg border border-stone-200 px-3 py-1.5 font-bold disabled:opacity-40">Trước</button>
+                <span className="font-bold text-stone-700">{menuPage}/{maxMenuPage}</span>
+                <button disabled={menuPage >= maxMenuPage} onClick={() => setMenuPage((p) => p + 1)} className="rounded-lg border border-stone-200 px-3 py-1.5 font-bold disabled:opacity-40">Sau</button>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-stone-200 bg-white shadow-warm">
+            <div className="border-b border-stone-100 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Order hiện tại</p>
+              <h2 className="text-2xl font-extrabold text-stone-950">{currentOrder ? currentOrder.TableName : 'Chưa chọn bàn'}</h2>
+              <p className="text-sm font-semibold text-amber-700">{currentOrder?.OrderNo || 'Mở bàn để tạo order'}</p>
+            </div>
+
+            {!currentOrder ? (
+              <div className="flex min-h-[360px] items-center justify-center p-8 text-center text-stone-500">
+                Chọn một bàn trống hoặc đang dùng để order.
+              </div>
+            ) : (
+              <div className="flex min-h-[520px] flex-col">
+                <div className="space-y-3 p-4">
+                  <div className="grid grid-cols-2 gap-3 rounded-2xl bg-stone-50 p-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase text-stone-400">Tạm tính</p>
+                      <p className="text-lg font-extrabold text-stone-900">{formatVnd(currentOrder.SubTotal)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase text-stone-400">Tổng tiền</p>
+                      <p className="text-lg font-extrabold text-emerald-700">{formatVnd(currentOrder.TotalAmount)}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      value={discount}
+                      onChange={(e) => setDiscount(Number(e.target.value || 0))}
+                      className="h-10 min-w-0 flex-1 rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm outline-none focus:border-amber-500"
+                      placeholder="Giảm giá"
+                    />
+                    <button onClick={saveOrderMeta} className="rounded-xl bg-stone-900 px-3 text-sm font-bold text-white">Lưu</button>
+                  </div>
+                  <textarea
+                    value={currentOrder.Note || ''}
+                    onChange={(e) => setCurrentOrder({ ...currentOrder, Note: e.target.value })}
+                    placeholder="Ghi chú order..."
+                    rows={2}
+                    className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="flex-1 space-y-3 overflow-y-auto border-y border-stone-100 p-4">
+                  {currentOrder.items?.length ? (
+                    currentOrder.items.map((item) => (
+                      <div key={item.Id} className="rounded-2xl border border-stone-200 bg-white p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="font-extrabold text-stone-950">{item.Name}</h3>
+                            <p className="text-xs font-semibold text-stone-500">{formatVnd(item.UnitPrice)}</p>
+                          </div>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${item.Status === 'SENT' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>
+                            {item.Status === 'SENT' ? 'Đã gửi' : 'Cần xác nhận'}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          <button onClick={() => updateItem(item, { Quantity: Number(item.Quantity) - 1 })} className="rounded-lg border border-stone-200 p-2"><Minus className="h-4 w-4" /></button>
+                          <input
+                            type="number"
+                            min={0}
+                            value={item.Quantity}
+                            onChange={(e) => updateItem(item, { Quantity: Number(e.target.value || 0) })}
+                            className="h-9 w-16 rounded-lg border border-stone-200 text-center text-sm font-bold"
+                          />
+                          <button onClick={() => updateItem(item, { Quantity: Number(item.Quantity) + 1 })} className="rounded-lg border border-stone-200 p-2"><Plus className="h-4 w-4" /></button>
+                          <input
+                            value={item.Note || ''}
+                            onChange={(e) => updateItem(item, { Note: e.target.value })}
+                            placeholder="Ghi chú món"
+                            className="h-9 min-w-0 flex-1 rounded-lg border border-stone-200 px-2 text-sm"
+                          />
+                          <button onClick={() => deleteItem(item.Id)} className="rounded-lg border border-rose-100 p-2 text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex h-40 items-center justify-center text-center text-stone-500">Bàn này chưa có món nào.</div>
+                  )}
+                </div>
+
+                <div className="space-y-3 p-4">
+                  <button
+                    onClick={confirmKitchen}
+                    disabled={!hasKitchenChanges}
+                    className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-extrabold text-white transition ${
+                      hasKitchenChanges ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-stone-300'
+                    }`}
+                  >
+                    <Check className="h-4 w-4" />
+                    Xác nhận order gửi bếp
+                  </button>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={() => printOrder('KITCHEN')} className="rounded-xl border border-stone-200 px-2 py-3 text-xs font-extrabold text-stone-700">Bếp</button>
+                    <button onClick={() => printOrder('TEMPORARY')} className="rounded-xl border border-stone-200 px-2 py-3 text-xs font-extrabold text-stone-700">Tạm tính</button>
+                    <button onClick={() => printOrder('PAYMENT')} className="rounded-xl border border-stone-200 bg-stone-900 px-2 py-3 text-xs font-extrabold text-white">Thanh toán</button>
+                  </div>
+                  <button onClick={payOrder} className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-amber-500">
+                    <CreditCard className="h-4 w-4" />
+                    Hoàn tất thanh toán
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {activeTab === 'setup' && (
+        <div className="grid gap-5 xl:grid-cols-3">
+          <SetupCard title="Setup bàn">
+            <FormGrid>
+              <Input label="Mã bàn" value={tableForm.code} onChange={(value) => setTableForm({ ...tableForm, code: value })} />
+              <Input label="Tên bàn" value={tableForm.name} onChange={(value) => setTableForm({ ...tableForm, name: value })} />
+              <Input label="Khu vực" value={tableForm.areaName} onChange={(value) => setTableForm({ ...tableForm, areaName: value })} />
+              <Input label="Số ghế" type="number" value={tableForm.seatCount} onChange={(value) => setTableForm({ ...tableForm, seatCount: Number(value) })} />
+              <Input label="Thứ tự" type="number" value={tableForm.sortOrder} onChange={(value) => setTableForm({ ...tableForm, sortOrder: Number(value) })} />
+            </FormGrid>
+            <SaveButton onClick={saveTable} label={tableEditingId ? 'Cập nhật bàn' : 'Thêm bàn'} />
+            <SimpleList items={tables.map((item) => ({ id: item.Id, title: item.Name, subtitle: item.AreaName || item.Code }))} onEdit={(id) => editTable(tables.find((item) => item.Id === id)!)} />
+          </SetupCard>
+
+          <SetupCard title="Nhóm món POS">
+            <FormGrid>
+              <Input label="Tên nhóm" value={categoryForm.name} onChange={(value) => setCategoryForm({ ...categoryForm, name: value })} />
+              <Input label="Mô tả" value={categoryForm.description} onChange={(value) => setCategoryForm({ ...categoryForm, description: value })} />
+              <Input label="Thứ tự" type="number" value={categoryForm.sortOrder} onChange={(value) => setCategoryForm({ ...categoryForm, sortOrder: Number(value) })} />
+            </FormGrid>
+            <SaveButton onClick={saveCategory} label={categoryEditingId ? 'Cập nhật nhóm' : 'Thêm nhóm'} />
+            <SimpleList items={categories.map((item) => ({ id: item.Id, title: item.Name, subtitle: item.Description || 'Đang hoạt động' }))} onEdit={(id) => editCategory(categories.find((item) => item.Id === id)!)} />
+          </SetupCard>
+
+          <SetupCard title="Món bán tại POS">
+            <FormGrid>
+              <Input label="Mã món" value={menuForm.code} onChange={(value) => setMenuForm({ ...menuForm, code: value })} />
+              <Input label="Tên món" value={menuForm.name} onChange={(value) => setMenuForm({ ...menuForm, name: value })} />
+              <label className="text-xs font-bold uppercase text-stone-500">
+                Nhóm món
+                <select value={menuForm.categoryId} onChange={(e) => setMenuForm({ ...menuForm, categoryId: e.target.value })} className="mt-1 h-10 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm normal-case outline-none">
+                  <option value="">Chưa phân nhóm</option>
+                  {categories.map((category) => <option key={category.Id} value={category.Id}>{category.Name}</option>)}
+                </select>
+              </label>
+              <Input label="Đơn vị" value={menuForm.unit} onChange={(value) => setMenuForm({ ...menuForm, unit: value })} />
+              <Input label="Giá bán" type="number" value={menuForm.price} onChange={(value) => setMenuForm({ ...menuForm, price: Number(value) })} />
+              <Input label="Thứ tự" type="number" value={menuForm.sortOrder} onChange={(value) => setMenuForm({ ...menuForm, sortOrder: Number(value) })} />
+            </FormGrid>
+            <SaveButton onClick={saveMenuItem} label={menuEditingId ? 'Cập nhật món' : 'Thêm món'} />
+            <SimpleList items={menuItems.slice(0, 12).map((item) => ({ id: item.Id, title: item.Name, subtitle: `${item.Code} - ${formatVnd(item.Price)}` }))} onEdit={(id) => editMenuItem(menuItems.find((item) => item.Id === id)!)} />
+          </SetupCard>
+        </div>
+      )}
+
+      {activeTab === 'templates' && (
+        <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-warm">
+            <h2 className="text-lg font-extrabold text-stone-900">Mẫu in</h2>
+            <div className="mt-4 space-y-2">
+              {templates.map((template) => (
+                <button
+                  key={template.Code}
+                  onClick={() => setEditingTemplate(template)}
+                  className={`w-full rounded-xl px-4 py-3 text-left text-sm font-bold transition ${editingTemplate?.Code === template.Code ? 'bg-amber-600 text-white' : 'bg-stone-50 text-stone-700 hover:bg-stone-100'}`}
+                >
+                  {template.Name}
+                  <span className="block text-xs opacity-70">{template.Code}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-warm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-stone-400">HTML template</p>
+                <h2 className="text-xl font-extrabold text-stone-900">{editingTemplate?.Name || 'Chọn mẫu'}</h2>
+              </div>
+              <button onClick={saveTemplate} className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white">
+                <Save className="h-4 w-4" />
+                Lưu mẫu
+              </button>
+            </div>
+            <textarea
+              value={editingTemplate?.Content || ''}
+              onChange={(e) => editingTemplate && setEditingTemplate({ ...editingTemplate, Content: e.target.value })}
+              className="mt-4 min-h-[520px] w-full rounded-xl border border-stone-200 bg-stone-950 p-4 font-mono text-sm text-amber-50 outline-none focus:border-amber-500"
+            />
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'dashboard' && (
+        <div className="space-y-5">
+          <div className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-warm sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xl font-extrabold text-stone-950">Doanh thu và lịch sử đơn</h2>
+              <p className="text-sm text-stone-500">Theo từng ngày, từng bill và từng món trong bill.</p>
+            </div>
+            <input type="date" value={historyDate} onChange={(e) => setHistoryDate(e.target.value)} className="h-10 rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm font-bold" />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-4">
+            <Metric label="Doanh thu" value={formatVnd(dashboard?.summary.Revenue)} />
+            <Metric label="Bill đã trả" value={dashboard?.summary.PaidOrders || 0} />
+            <Metric label="Order mở" value={dashboard?.summary.OpenOrders || 0} />
+            <Metric label="Trung bình bill" value={formatVnd(dashboard?.summary.AverageBill)} />
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="rounded-2xl border border-stone-200 bg-white shadow-warm">
+              <div className="border-b border-stone-100 p-4">
+                <h3 className="text-lg font-extrabold text-stone-900">Lịch sử đơn trong ngày</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="bg-stone-50 text-xs uppercase text-stone-500">
+                    <tr>
+                      <th className="px-4 py-3">Check No</th>
+                      <th className="px-4 py-3">Bàn</th>
+                      <th className="px-4 py-3">Giờ order</th>
+                      <th className="px-4 py-3">Món</th>
+                      <th className="px-4 py-3 text-right">Tổng tiền</th>
+                      <th className="px-4 py-3">Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {history.map((order) => (
+                      <tr key={order.Id} onClick={() => openHistoryDetail(order)} className="cursor-pointer hover:bg-amber-50/60">
+                        <td className="px-4 py-3 font-bold text-stone-900">{order.OrderNo}</td>
+                        <td className="px-4 py-3">{order.TableName}</td>
+                        <td className="px-4 py-3">{formatDateTime(order.CreatedAt)}</td>
+                        <td className="px-4 py-3">{order.ItemCount || 0}</td>
+                        <td className="px-4 py-3 text-right font-extrabold">{formatVnd(order.TotalAmount)}</td>
+                        <td className="px-4 py-3"><span className="rounded-full bg-stone-100 px-2 py-1 text-xs font-bold">{order.Status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {!history.length && <div className="p-12 text-center text-stone-500">Chưa có đơn nào trong ngày này.</div>}
+            </div>
+
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-warm">
+                <h3 className="text-lg font-extrabold text-stone-900">Top món trong ngày</h3>
+                <div className="mt-4 space-y-3">
+                  {(dashboard?.topItems || []).map((item) => (
+                    <div key={item.Name} className="rounded-xl bg-stone-50 p-3">
+                      <div className="flex justify-between gap-3">
+                        <p className="font-extrabold text-stone-900">{item.Name}</p>
+                        <p className="font-extrabold text-emerald-700">{formatVnd(item.Amount)}</p>
+                      </div>
+                      <p className="text-xs font-semibold text-stone-500">Số lượng {Number(item.Quantity || 0).toLocaleString('vi-VN')}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-warm">
+                <h3 className="text-lg font-extrabold text-stone-900">Chi tiết đơn</h3>
+                {selectedHistoryOrder ? (
+                  <div className="mt-3 space-y-3">
+                    <div className="rounded-xl bg-amber-50 p-3">
+                      <p className="font-extrabold text-stone-950">{selectedHistoryOrder.OrderNo}</p>
+                      <p className="text-sm text-stone-600">Bàn {selectedHistoryOrder.TableName} - {formatDateTime(selectedHistoryOrder.CreatedAt)}</p>
+                    </div>
+                    {selectedHistoryOrder.items?.map((item) => (
+                      <div key={item.Id} className="flex justify-between gap-3 rounded-xl border border-stone-100 p-3 text-sm">
+                        <div>
+                          <p className="font-bold text-stone-900">{item.Name}</p>
+                          <p className="text-stone-500">SL {item.Quantity} x {formatVnd(item.UnitPrice)}</p>
+                        </div>
+                        <p className="font-extrabold">{formatVnd(Number(item.Quantity) * Number(item.UnitPrice))}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-6 text-sm text-stone-500">Click một đơn trong bảng để xem món ăn và giờ order.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SetupCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-stone-200 bg-white p-4 shadow-warm">
+      <h2 className="text-lg font-extrabold text-stone-950">{title}</h2>
+      <div className="mt-4 space-y-4">{children}</div>
+    </section>
+  );
+}
+
+function FormGrid({ children }: { children: React.ReactNode }) {
+  return <div className="grid gap-3 sm:grid-cols-2">{children}</div>;
+}
+
+function Input({
+  label,
+  value,
+  type = 'text',
+  onChange,
+}: {
+  label: string;
+  value: string | number;
+  type?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="text-xs font-bold uppercase text-stone-500">
+      {label}
+      <input
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1 h-10 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm normal-case outline-none focus:border-amber-500"
+      />
+    </label>
+  );
+}
+
+function SaveButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-amber-500">
+      <Save className="h-4 w-4" />
+      {label}
+    </button>
+  );
+}
+
+function SimpleList({
+  items,
+  onEdit,
+}: {
+  items: Array<{ id: string; title: string; subtitle: string }>;
+  onEdit: (id: string) => void;
+}) {
+  return (
+    <div className="max-h-72 space-y-2 overflow-y-auto">
+      {items.map((item) => (
+        <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl bg-stone-50 p-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-extrabold text-stone-900">{item.title}</p>
+            <p className="truncate text-xs text-stone-500">{item.subtitle}</p>
+          </div>
+          <button onClick={() => onEdit(item.id)} className="rounded-lg p-2 text-stone-500 hover:bg-white hover:text-amber-600">
+            <Edit2 className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-warm">
+      <p className="text-xs font-bold uppercase tracking-wider text-stone-400">{label}</p>
+      <p className="mt-2 text-2xl font-extrabold text-stone-950">{value}</p>
+    </div>
+  );
+}

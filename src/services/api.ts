@@ -171,4 +171,28 @@ export const adminApi = {
   createReview: (data: any) => api.post('/admin/reviews', data).then(res => res.data),
   updateReview: (id: string, data: any) => api.put(`/admin/reviews/${id}`, data).then(res => res.data),
   deleteReview: (id: string) => api.delete(`/admin/reviews/${id}`).then(res => res.data),
+
+  // POS
+  getPosBootstrap: () => api.get('/admin/pos/bootstrap').then(res => res.data),
+  upsertPosTable: (data: any, id?: string) =>
+    (id ? api.put(`/admin/pos/tables/${id}`, data) : api.post('/admin/pos/tables', data)).then(res => res.data),
+  upsertPosMenuCategory: (data: any, id?: string) =>
+    (id ? api.put(`/admin/pos/menu-categories/${id}`, data) : api.post('/admin/pos/menu-categories', data)).then(res => res.data),
+  upsertPosMenuItem: (data: any, id?: string) =>
+    (id ? api.put(`/admin/pos/menu-items/${id}`, data) : api.post('/admin/pos/menu-items', data)).then(res => res.data),
+  openPosOrder: (tableId: string) => api.post('/admin/pos/orders/open', { tableId }).then(res => res.data),
+  getPosOrder: (id: string) => api.get(`/admin/pos/orders/${id}`).then(res => res.data),
+  updatePosOrder: (id: string, data: any) => api.put(`/admin/pos/orders/${id}`, data).then(res => res.data),
+  addPosOrderItem: (orderId: string, data: any) => api.post(`/admin/pos/orders/${orderId}/items`, data).then(res => res.data),
+  updatePosOrderItem: (orderId: string, itemId: string, data: any) =>
+    api.put(`/admin/pos/orders/${orderId}/items/${itemId}`, data).then(res => res.data),
+  deletePosOrderItem: (orderId: string, itemId: string) =>
+    api.delete(`/admin/pos/orders/${orderId}/items/${itemId}`).then(res => res.data),
+  confirmPosKitchen: (orderId: string) => api.post(`/admin/pos/orders/${orderId}/confirm-kitchen`).then(res => res.data),
+  payPosOrder: (orderId: string, paymentMethod: string) =>
+    api.post(`/admin/pos/orders/${orderId}/pay`, { paymentMethod }).then(res => res.data),
+  getPosHistory: (date?: string) => api.get('/admin/pos/orders/history', { params: { date } }).then(res => res.data),
+  getPosDashboard: (date?: string) => api.get('/admin/pos/dashboard', { params: { date } }).then(res => res.data),
+  updatePosPrintTemplate: (code: string, content: string) =>
+    api.put(`/admin/pos/print-templates/${code}`, { content }).then(res => res.data),
 };
