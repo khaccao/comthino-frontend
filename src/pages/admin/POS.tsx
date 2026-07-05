@@ -178,7 +178,10 @@ export default function POS() {
       }
     } catch (error) {
       console.error(error);
-      setToast('Không tải được dữ liệu POS. Kiểm tra cấu hình CaoConnection ở backend.');
+      const message =
+        (error as any)?.response?.data?.message ||
+        'Không tải được dữ liệu POS. Kiểm tra cấu hình CaoConnection ở backend.';
+      setToast(message);
     } finally {
       setIsLoading(false);
     }
