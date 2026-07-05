@@ -21,9 +21,16 @@ type PosTable = {
   Name: string;
   AreaName?: string;
   SeatCount: number;
+  PositionX: number;
+  PositionY: number;
+  Width: number;
+  Height: number;
+  Shape: 'RECT' | 'ROUND';
   SortOrder: number;
   Status: 'AVAILABLE' | 'OCCUPIED';
   IsActive: boolean;
+  SourceGuid?: string;
+  SourceTable?: string;
 };
 
 type PosCategory = {
@@ -122,7 +129,19 @@ const tabs = [
 
 type TabKey = typeof tabs[number]['key'];
 
-const emptyTableForm = { code: '', name: '', areaName: 'Nhà hàng', seatCount: 4, sortOrder: 0, isActive: true };
+const emptyTableForm = {
+  code: '',
+  name: '',
+  areaName: 'Nhà hàng',
+  seatCount: 4,
+  positionX: 24,
+  positionY: 24,
+  width: 130,
+  height: 100,
+  shape: 'RECT',
+  sortOrder: 0,
+  isActive: true,
+};
 const emptyCategoryForm = { name: '', description: '', sortOrder: 0, isActive: true };
 const emptyMenuForm = {
   code: '',
@@ -163,6 +182,11 @@ export default function POS() {
   const [menuForm, setMenuForm] = useState(emptyMenuForm);
   const [menuEditingId, setMenuEditingId] = useState<string | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<PrintTemplate | null>(null);
+  const [dragState, setDragState] = useState<{
+    id: string;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
 
   const loadBootstrap = async () => {
     setIsLoading(true);
@@ -239,6 +263,64 @@ export default function POS() {
   const maxMenuPage = Math.max(1, Math.ceil(filteredItems.length / pageSize));
 
   const hasKitchenChanges = currentOrder?.items?.some((item) => item.Status === 'NEW' || item.Status === 'CHANGED');
+
+  const normalizeTableLayout = (table: PosTable) => ({
+    positionX: Number(table.PositionX || 0),
+    positionY: Number(table.PositionY || 0),
+    width: Number(table.Width || 130),
+    height: Number(table.Height || 100),
+    shape: table.Shape || 'RECT',
+  });
+
+  const updateLocalTableLayout = (id: string, patch: Partial<PosTable>) => {
+    setTables((current) => current.map((table) => (table.Id === id ? { ...table, ...patch } : table)));
+  };
+
+  const beginTableDrag = (event: React.PointerEvent<HTMLButtonElement>, table: PosTable) => {
+    if (activeTab !== 'setup') return;
+    const layout = normalizeTableLayout(table);
+    const canvas = event.currentTarget.closest('[data-pos-canvas]');
+    const rect = canvas?.getBoundingClientRect();
+    setDragState({
+      id: table.Id,
+      offsetX: event.clientX - (rect?.left || 0) - layout.positionX,
+      offsetY: event.clientY - (rect?.top || 0) - layout.positionY,
+    });
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveTableOnCanvas = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const table = tables.find((item) => item.Id === dragState.id);
+    if (!table) return;
+    const layout = normalizeTableLayout(table);
+    const nextX = Math.max(8, Math.min(event.clientX - rect.left - dragState.offsetX, rect.width - layout.width - 8));
+    const nextY = Math.max(8, Math.min(event.clientY - rect.top - dragState.offsetY, rect.height - layout.height - 8));
+    updateLocalTableLayout(dragState.id, {
+      PositionX: Math.round(nextX),
+      PositionY: Math.round(nextY),
+    } as Partial<PosTable>);
+  };
+
+  const saveTableLayout = async () => {
+    const payload = tables.map((table) => {
+      const layout = normalizeTableLayout(table);
+      return {
+        id: table.Id,
+        positionX: layout.positionX,
+        positionY: layout.positionY,
+        width: layout.width,
+        height: layout.height,
+        shape: layout.shape,
+      };
+    });
+    const res = await adminApi.updatePosTableLayout(payload);
+    if (res.success) {
+      setToast('Đã lưu sơ đồ bàn.');
+      await loadBootstrap();
+    }
+  };
 
   const selectTable = async (table: PosTable) => {
     setSelectedTable(table);
@@ -413,6 +495,11 @@ export default function POS() {
       name: table.Name,
       areaName: table.AreaName || '',
       seatCount: table.SeatCount || 4,
+      positionX: table.PositionX || 0,
+      positionY: table.PositionY || 0,
+      width: table.Width || 130,
+      height: table.Height || 100,
+      shape: table.Shape || 'RECT',
       sortOrder: table.SortOrder || 0,
       isActive: table.IsActive,
     });
@@ -466,7 +553,7 @@ export default function POS() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="-m-4 min-h-[calc(100vh-4rem)] space-y-4 bg-stone-100 p-3 animate-fade-in sm:-m-6 sm:p-4 lg:-m-8 lg:p-5">
       {toast && (
         <div className="fixed right-5 top-5 z-50 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 shadow-lg">
           {toast}
@@ -512,21 +599,29 @@ export default function POS() {
       </div>
 
       {activeTab === 'pos' && (
-        <div className="grid gap-4 xl:grid-cols-[250px_minmax(0,1fr)_390px]">
-          <section className="rounded-2xl border border-stone-200 bg-white shadow-warm">
+        <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)_430px]">
+          <section className="rounded-2xl border border-stone-200 bg-white shadow-warm xl:min-h-[calc(100vh-13rem)]">
             <div className="border-b border-stone-100 p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Sơ đồ bàn</p>
               <h2 className="text-xl font-extrabold text-stone-900">{selectedTable ? `Bàn ${selectedTable.Name}` : 'Chọn bàn'}</h2>
             </div>
-            <div className="grid grid-cols-2 gap-3 p-4 xl:grid-cols-1">
+            <div className="overflow-auto p-4">
+              <div className="relative h-[520px] min-w-[760px] rounded-2xl border border-dashed border-stone-300 bg-[linear-gradient(90deg,rgba(214,211,209,.55)_1px,transparent_1px),linear-gradient(rgba(214,211,209,.55)_1px,transparent_1px)] bg-[size:32px_32px]">
               {tables.map((table) => {
                 const activeOrder = tableOrderMap.get(table.Id);
                 const active = selectedTable?.Id === table.Id;
+                const layout = normalizeTableLayout(table);
                 return (
                   <button
                     key={table.Id}
                     onClick={() => selectTable(table)}
-                    className={`rounded-2xl border p-4 text-left transition ${
+                    style={{
+                      left: layout.positionX,
+                      top: layout.positionY,
+                      width: layout.width,
+                      height: layout.height,
+                    }}
+                    className={`absolute rounded-2xl border p-3 text-left transition ${
                       active
                         ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200'
                         : activeOrder
@@ -534,7 +629,7 @@ export default function POS() {
                           : 'border-stone-200 bg-stone-50 hover:border-amber-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between gap-2">
                       <span className="text-xl font-extrabold text-stone-950">{table.Name}</span>
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${activeOrder ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-600'}`}>
                         {activeOrder ? 'Đang dùng' : 'Trống'}
@@ -545,6 +640,7 @@ export default function POS() {
                   </button>
                 );
               })}
+              </div>
             </div>
           </section>
 
@@ -720,13 +816,88 @@ export default function POS() {
       )}
 
       {activeTab === 'setup' && (
-        <div className="grid gap-5 xl:grid-cols-3">
+        <div className="space-y-5">
+          <section className="rounded-2xl border border-stone-200 bg-white p-4 shadow-warm">
+            <div className="flex flex-col gap-3 border-b border-stone-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Thiết lập mặt bằng</p>
+                <h2 className="text-xl font-extrabold text-stone-950">Kéo thả vị trí bàn</h2>
+                <p className="mt-1 text-sm text-stone-500">Dữ liệu vị trí được đồng bộ với bảng POS gốc trong CAO_BNHHotelManagement.</p>
+              </div>
+              <button onClick={saveTableLayout} className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-extrabold text-white transition hover:bg-amber-500">
+                <Save className="h-4 w-4" />
+                Lưu sơ đồ bàn
+              </button>
+            </div>
+            <div className="mt-4 overflow-auto">
+              <div
+                data-pos-canvas
+                onPointerMove={moveTableOnCanvas}
+                onPointerUp={() => setDragState(null)}
+                onPointerLeave={() => setDragState(null)}
+                className="relative h-[620px] min-w-[1100px] rounded-2xl border border-dashed border-stone-300 bg-stone-50 bg-[linear-gradient(90deg,rgba(214,211,209,.75)_1px,transparent_1px),linear-gradient(rgba(214,211,209,.75)_1px,transparent_1px)] bg-[size:32px_32px]"
+              >
+                <div className="pointer-events-none absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-stone-500 shadow-sm">
+                  Prime Restaurant floor plan
+                </div>
+                {tables.map((table) => {
+                  const activeOrder = tableOrderMap.get(table.Id);
+                  const layout = normalizeTableLayout(table);
+                  return (
+                    <button
+                      key={table.Id}
+                      type="button"
+                      onPointerDown={(event) => beginTableDrag(event, table)}
+                      onDoubleClick={() => editTable(table)}
+                      style={{
+                        left: layout.positionX,
+                        top: layout.positionY,
+                        width: layout.width,
+                        height: layout.height,
+                        borderRadius: layout.shape === 'ROUND' ? 999 : 16,
+                        touchAction: 'none',
+                      }}
+                      className={`absolute cursor-grab select-none border p-3 text-left shadow-sm transition active:cursor-grabbing ${
+                        activeOrder ? 'border-emerald-300 bg-emerald-50' : 'border-amber-200 bg-white hover:border-amber-500'
+                      }`}
+                    >
+                      <div className="flex h-full flex-col justify-between">
+                        <div>
+                          <p className="text-xl font-extrabold text-stone-950">{table.Name}</p>
+                          <p className="text-xs font-semibold text-stone-500">{table.AreaName || table.Code}</p>
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-bold text-stone-400">{layout.width}x{layout.height}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${activeOrder ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-600'}`}>
+                            {activeOrder ? 'Đang dùng' : 'Trống'}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          <div className="grid gap-5 xl:grid-cols-3">
           <SetupCard title="Setup bàn">
             <FormGrid>
               <Input label="Mã bàn" value={tableForm.code} onChange={(value) => setTableForm({ ...tableForm, code: value })} />
               <Input label="Tên bàn" value={tableForm.name} onChange={(value) => setTableForm({ ...tableForm, name: value })} />
               <Input label="Khu vực" value={tableForm.areaName} onChange={(value) => setTableForm({ ...tableForm, areaName: value })} />
               <Input label="Số ghế" type="number" value={tableForm.seatCount} onChange={(value) => setTableForm({ ...tableForm, seatCount: Number(value) })} />
+              <Input label="X" type="number" value={tableForm.positionX} onChange={(value) => setTableForm({ ...tableForm, positionX: Number(value) })} />
+              <Input label="Y" type="number" value={tableForm.positionY} onChange={(value) => setTableForm({ ...tableForm, positionY: Number(value) })} />
+              <Input label="Rộng" type="number" value={tableForm.width} onChange={(value) => setTableForm({ ...tableForm, width: Number(value) })} />
+              <Input label="Cao" type="number" value={tableForm.height} onChange={(value) => setTableForm({ ...tableForm, height: Number(value) })} />
+              <label className="text-xs font-bold uppercase text-stone-500">
+                Hình dạng
+                <select value={tableForm.shape} onChange={(e) => setTableForm({ ...tableForm, shape: e.target.value })} className="mt-1 h-10 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm normal-case outline-none">
+                  <option value="RECT">Vuông/chữ nhật</option>
+                  <option value="ROUND">Tròn</option>
+                </select>
+              </label>
               <Input label="Thứ tự" type="number" value={tableForm.sortOrder} onChange={(value) => setTableForm({ ...tableForm, sortOrder: Number(value) })} />
             </FormGrid>
             <SaveButton onClick={saveTable} label={tableEditingId ? 'Cập nhật bàn' : 'Thêm bàn'} />
@@ -761,6 +932,7 @@ export default function POS() {
             <SaveButton onClick={saveMenuItem} label={menuEditingId ? 'Cập nhật món' : 'Thêm món'} />
             <SimpleList items={menuItems.slice(0, 12).map((item) => ({ id: item.Id, title: item.Name, subtitle: `${item.Code} - ${formatVnd(item.Price)}` }))} onEdit={(id) => editMenuItem(menuItems.find((item) => item.Id === id)!)} />
           </SetupCard>
+        </div>
         </div>
       )}
 
