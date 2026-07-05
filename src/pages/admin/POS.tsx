@@ -97,9 +97,13 @@ type PosDashboardData = {
     PaidOrders?: number;
     OpenOrders?: number;
     AverageBill?: number;
+    DiscountAmount?: number;
+    PreviousRevenue?: number;
+    PreviousPaidOrders?: number;
   };
   topItems: Array<{ Name: string; Quantity: number; Amount: number }>;
   hourly: Array<{ Hour: number; Revenue: number; Orders: number }>;
+  statusBreakdown?: Array<{ Status: string; Count: number; Revenue: number }>;
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -117,6 +121,22 @@ const formatDateTime = (value?: string) => {
     year: 'numeric',
   });
 };
+
+const formatShortDate = (value: string) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString('vi-VN', {
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
+  });
+
+const calcGrowth = (current?: number, previous?: number) => {
+  const now = Number(current || 0);
+  const before = Number(previous || 0);
+  if (before <= 0) return now > 0 ? 100 : 0;
+  return ((now - before) / before) * 100;
+};
+
+const formatGrowth = (value: number) => `${value >= 0 ? '+' : ''}${value.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}% so với ngày trước`;
 
 const replaceToken = (content: string, token: string, value: string) => content.split(token).join(value);
 
@@ -544,6 +564,18 @@ export default function POS() {
     if (res.success) setSelectedHistoryOrder(res.data);
   };
 
+  const hourlyData = Array.from({ length: 24 }, (_, hour) => {
+    const found = dashboard?.hourly?.find((item) => Number(item.Hour) === hour);
+    return {
+      Hour: hour,
+      Revenue: Number(found?.Revenue || 0),
+      Orders: Number(found?.Orders || 0),
+    };
+  });
+  const maxHourlyRevenue = Math.max(1, ...hourlyData.map((item) => item.Revenue));
+  const revenueGrowth = calcGrowth(dashboard?.summary.Revenue, dashboard?.summary.PreviousRevenue);
+  const paidOrdersGrowth = calcGrowth(dashboard?.summary.PaidOrders, dashboard?.summary.PreviousPaidOrders);
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -599,14 +631,14 @@ export default function POS() {
       </div>
 
       {activeTab === 'pos' && (
-        <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)_430px]">
-          <section className="rounded-2xl border border-stone-200 bg-white shadow-warm xl:min-h-[calc(100vh-13rem)]">
+        <div className={selectedTable ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_430px]" : "grid gap-4"}>
+          <section className={`rounded-2xl border border-stone-200 bg-white shadow-warm xl:min-h-[calc(100vh-13rem)] ${selectedTable ? 'hidden' : ''}`}>
             <div className="border-b border-stone-100 p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Sơ đồ bàn</p>
               <h2 className="text-xl font-extrabold text-stone-900">{selectedTable ? `Bàn ${selectedTable.Name}` : 'Chọn bàn'}</h2>
             </div>
             <div className="overflow-auto p-4">
-              <div className="relative h-[520px] min-w-[760px] rounded-2xl border border-dashed border-stone-300 bg-[linear-gradient(90deg,rgba(214,211,209,.55)_1px,transparent_1px),linear-gradient(rgba(214,211,209,.55)_1px,transparent_1px)] bg-[size:32px_32px]">
+              <div className="relative h-[calc(100vh-18rem)] min-h-[620px] min-w-[1120px] rounded-2xl border border-dashed border-stone-300 bg-[linear-gradient(90deg,rgba(214,211,209,.55)_1px,transparent_1px),linear-gradient(rgba(214,211,209,.55)_1px,transparent_1px)] bg-[size:32px_32px]">
               {tables.map((table) => {
                 const activeOrder = tableOrderMap.get(table.Id);
                 const active = selectedTable?.Id === table.Id;
@@ -644,7 +676,7 @@ export default function POS() {
             </div>
           </section>
 
-          <section className="min-w-0 rounded-2xl border border-stone-200 bg-white shadow-warm">
+          <section className={`min-w-0 rounded-2xl border border-stone-200 bg-white shadow-warm ${!selectedTable ? 'hidden' : ''}`}>
             <div className="border-b border-stone-100 p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div>
@@ -652,6 +684,16 @@ export default function POS() {
                   <h2 className="text-2xl font-extrabold text-stone-950">
                     {selectedTable ? `Chọn món cho bàn ${selectedTable.Name}` : 'Chọn bàn để bắt đầu'}
                   </h2>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTable(null);
+                      setCurrentOrder(null);
+                    }}
+                    className="mt-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-extrabold text-stone-700 transition hover:bg-stone-100"
+                  >
+                    Sơ đồ bàn
+                  </button>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-[1fr_180px]">
                   <div className="relative">
@@ -706,7 +748,7 @@ export default function POS() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-stone-200 bg-white shadow-warm">
+          <section className={`rounded-2xl border border-stone-200 bg-white shadow-warm ${!selectedTable ? 'hidden' : ''}`}>
             <div className="border-b border-stone-100 p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Order hiện tại</p>
               <h2 className="text-2xl font-extrabold text-stone-950">{currentOrder ? currentOrder.TableName : 'Chưa chọn bàn'}</h2>
@@ -975,25 +1017,83 @@ export default function POS() {
 
       {activeTab === 'dashboard' && (
         <div className="space-y-5">
-          <div className="flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-warm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-6 shadow-warm lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-xl font-extrabold text-stone-950">Doanh thu và lịch sử đơn</h2>
-              <p className="text-sm text-stone-500">Theo từng ngày, từng bill và từng món trong bill.</p>
+              <p className="text-xs font-extrabold uppercase tracking-wider text-stone-500">Dashboard POS</p>
+              <h2 className="mt-2 text-4xl font-extrabold text-stone-950">{formatShortDate(historyDate)}</h2>
+              <p className="mt-2 text-sm font-semibold text-stone-600">Doanh thu, lịch sử đơn và món bán chạy theo dữ liệu CAO_BNHHotelManagement.</p>
             </div>
-            <input type="date" value={historyDate} onChange={(e) => setHistoryDate(e.target.value)} className="h-10 rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm font-bold" />
+            <div className="flex flex-col gap-3 sm:items-end">
+              <input type="date" value={historyDate} onChange={(e) => setHistoryDate(e.target.value)} className="h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-extrabold text-stone-800 shadow-sm" />
+              <div className="text-left sm:text-right">
+                <p className="text-4xl font-black text-emerald-700">{formatVnd(dashboard?.summary.Revenue)}</p>
+                <p className="mt-1 text-xs font-extrabold uppercase tracking-wider text-stone-500">Doanh thu trong ngày</p>
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-4">
-            <Metric label="Doanh thu" value={formatVnd(dashboard?.summary.Revenue)} />
-            <Metric label="Bill đã trả" value={dashboard?.summary.PaidOrders || 0} />
-            <Metric label="Order mở" value={dashboard?.summary.OpenOrders || 0} />
-            <Metric label="Trung bình bill" value={formatVnd(dashboard?.summary.AverageBill)} />
+            <Metric label="Doanh thu" value={formatVnd(dashboard?.summary.Revenue)} hint={formatGrowth(revenueGrowth)} tone={revenueGrowth >= 0 ? 'up' : 'down'} />
+            <Metric label="Bill đã trả" value={dashboard?.summary.PaidOrders || 0} hint={formatGrowth(paidOrdersGrowth)} tone={paidOrdersGrowth >= 0 ? 'up' : 'down'} />
+            <Metric label="Order mở" value={dashboard?.summary.OpenOrders || 0} hint="Đang phục vụ tại bàn" />
+            <Metric label="Trung bình bill" value={formatVnd(dashboard?.summary.AverageBill)} hint={`Discount ${formatVnd(dashboard?.summary.DiscountAmount)}`} />
+          </div>
+
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+            <div className="rounded-2xl border border-stone-200 bg-white shadow-warm">
+              <div className="border-b border-stone-100 p-4">
+                <h3 className="text-lg font-extrabold text-stone-900">Doanh thu theo giờ</h3>
+                <p className="mt-1 text-sm text-stone-500">Tính theo thời điểm thanh toán.</p>
+              </div>
+              <div className="overflow-x-auto p-4">
+                <div className="flex min-w-[920px] items-end gap-1">
+                  {hourlyData.map((item) => {
+                    const height = Math.max(10, Math.round((item.Revenue / maxHourlyRevenue) * 220));
+                    const active = item.Revenue > 0;
+                    return (
+                      <div key={item.Hour} className="flex flex-1 flex-col items-center gap-2">
+                        <div className="flex h-60 w-full items-end rounded-full bg-stone-100">
+                          <div
+                            className={`w-full rounded-full transition ${active ? 'bg-gradient-to-t from-emerald-700 to-emerald-400' : 'bg-stone-200'}`}
+                            style={{ height }}
+                            title={`${item.Hour}:00 - ${formatVnd(item.Revenue)}`}
+                          />
+                        </div>
+                        <span className="text-xs font-extrabold text-stone-700">{item.Hour.toString().padStart(2, '0')}</span>
+                        <span className="h-14 -rotate-90 whitespace-nowrap text-[11px] font-semibold text-stone-500">{formatVnd(item.Revenue)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-stone-200 bg-white shadow-warm">
+              <div className="border-b border-stone-100 p-4">
+                <h3 className="text-lg font-extrabold text-stone-900">Top món trong ngày</h3>
+                <p className="mt-1 text-sm text-stone-500">Theo order đã thanh toán.</p>
+              </div>
+              <div className="max-h-[390px] space-y-3 overflow-y-auto p-4">
+                {(dashboard?.topItems || []).map((item, index) => (
+                  <div key={item.Name} className="flex items-center gap-3 rounded-xl border border-stone-100 bg-white p-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-sm font-black text-emerald-700">{index + 1}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-extrabold text-stone-950">{item.Name}</p>
+                      <p className="text-xs font-semibold text-stone-500">Số lượng {Number(item.Quantity || 0).toLocaleString('vi-VN')}</p>
+                    </div>
+                    <p className="text-right font-extrabold text-stone-950">{formatVnd(item.Amount)}</p>
+                  </div>
+                ))}
+                {!dashboard?.topItems?.length && <div className="py-10 text-center text-sm text-stone-500">Chưa có món bán trong ngày này.</div>}
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
             <div className="rounded-2xl border border-stone-200 bg-white shadow-warm">
               <div className="border-b border-stone-100 p-4">
                 <h3 className="text-lg font-extrabold text-stone-900">Lịch sử đơn trong ngày</h3>
+                <p className="mt-1 text-sm text-stone-500">Click một đơn để xem chi tiết món, giờ order và tổng tiền.</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px] text-left text-sm">
@@ -1009,7 +1109,7 @@ export default function POS() {
                   </thead>
                   <tbody className="divide-y divide-stone-100">
                     {history.map((order) => (
-                      <tr key={order.Id} onClick={() => openHistoryDetail(order)} className="cursor-pointer hover:bg-amber-50/60">
+                      <tr key={order.Id} onClick={() => openHistoryDetail(order)} className={`cursor-pointer hover:bg-amber-50/60 ${selectedHistoryOrder?.Id === order.Id ? 'bg-amber-50' : ''}`}>
                         <td className="px-4 py-3 font-bold text-stone-900">{order.OrderNo}</td>
                         <td className="px-4 py-3">{order.TableName}</td>
                         <td className="px-4 py-3">{formatDateTime(order.CreatedAt)}</td>
@@ -1025,21 +1125,6 @@ export default function POS() {
             </div>
 
             <div className="space-y-5">
-              <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-warm">
-                <h3 className="text-lg font-extrabold text-stone-900">Top món trong ngày</h3>
-                <div className="mt-4 space-y-3">
-                  {(dashboard?.topItems || []).map((item) => (
-                    <div key={item.Name} className="rounded-xl bg-stone-50 p-3">
-                      <div className="flex justify-between gap-3">
-                        <p className="font-extrabold text-stone-900">{item.Name}</p>
-                        <p className="font-extrabold text-emerald-700">{formatVnd(item.Amount)}</p>
-                      </div>
-                      <p className="text-xs font-semibold text-stone-500">Số lượng {Number(item.Quantity || 0).toLocaleString('vi-VN')}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-warm">
                 <h3 className="text-lg font-extrabold text-stone-900">Chi tiết đơn</h3>
                 {selectedHistoryOrder ? (
@@ -1140,11 +1225,26 @@ function SimpleList({
   );
 }
 
-function Metric({ label, value }: { label: string; value: React.ReactNode }) {
+function Metric({
+  label,
+  value,
+  hint,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+  tone?: 'neutral' | 'up' | 'down';
+}) {
   return (
     <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-warm">
       <p className="text-xs font-bold uppercase tracking-wider text-stone-400">{label}</p>
       <p className="mt-2 text-2xl font-extrabold text-stone-950">{value}</p>
+      {hint && (
+        <p className={`mt-3 text-xs font-extrabold ${tone === 'up' ? 'text-emerald-700' : tone === 'down' ? 'text-rose-600' : 'text-stone-500'}`}>
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
