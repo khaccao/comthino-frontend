@@ -645,7 +645,7 @@ export default function POS() {
   }
 
   return (
-    <div className="-m-4 min-h-[calc(100vh-4rem)] space-y-4 bg-stone-100 p-3 animate-fade-in sm:-m-6 sm:p-4 lg:-m-8 lg:p-5">
+    <div className="-m-4 min-h-[calc(100vh-4rem)] space-y-3 bg-stone-100 p-2 animate-fade-in sm:-m-6 sm:space-y-4 sm:p-4 lg:-m-8 lg:p-5">
       {toast && (
         <div className="fixed right-5 top-5 z-50 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 shadow-lg">
           {toast}
@@ -653,10 +653,10 @@ export default function POS() {
         </div>
       )}
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-5 shadow-warm lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-warm sm:p-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-700">Com Thi No Restaurant</p>
-          <h1 className="mt-1 text-2xl font-extrabold text-stone-950">Máy POS nhà hàng</h1>
+          <h1 className="mt-1 text-xl font-extrabold text-stone-950 sm:text-2xl">Máy POS nhà hàng</h1>
           <p className="mt-1 text-sm text-stone-500">Chọn bàn, ghi món, xác nhận bếp, in bill và theo dõi doanh thu trong ngày.</p>
         </div>
         <button
@@ -664,14 +664,14 @@ export default function POS() {
             loadBootstrap();
             if (activeTab === 'dashboard') loadReports();
           }}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-bold text-stone-700 transition hover:bg-stone-100"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-bold text-stone-700 transition hover:bg-stone-100 sm:w-auto"
         >
           <RefreshCw className="h-4 w-4" />
           Tải lại
         </button>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto rounded-2xl border border-stone-200 bg-white p-2 shadow-warm">
+      <div className="flex gap-2 overflow-x-auto rounded-2xl border border-stone-200 bg-white p-2 shadow-warm [scrollbar-width:none]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.key;
@@ -679,7 +679,7 @@ export default function POS() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`inline-flex min-w-max items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+              className={`inline-flex min-w-max items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold transition sm:px-4 ${
                 active ? 'bg-amber-600 text-white shadow' : 'text-stone-600 hover:bg-stone-100'
               }`}
             >
@@ -691,57 +691,84 @@ export default function POS() {
       </div>
 
       {activeTab === 'pos' && (
-        <div className={selectedTable ? "grid gap-4 xl:grid-cols-[minmax(0,1fr)_430px]" : "grid gap-4"}>
+        <div className={selectedTable ? "grid gap-3 lg:gap-4 xl:grid-cols-[minmax(0,1fr)_430px]" : "grid gap-3 lg:gap-4"}>
           <section className={`rounded-2xl border border-stone-200 bg-white shadow-warm xl:min-h-[calc(100vh-13rem)] ${selectedTable ? 'hidden' : ''}`}>
-            <div className="border-b border-stone-100 p-4">
+            <div className="border-b border-stone-100 p-4 sm:p-5">
               <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Sơ đồ bàn</p>
-              <h2 className="text-xl font-extrabold text-stone-900">{selectedTable ? `Bàn ${selectedTable.Name}` : 'Chọn bàn'}</h2>
+              <h2 className="text-xl font-extrabold text-stone-900 sm:text-2xl">{selectedTable ? `Bàn ${selectedTable.Name}` : 'Chọn bàn'}</h2>
             </div>
-            <div className="overflow-auto p-4">
-              <div className="relative h-[calc(100vh-18rem)] min-h-[620px] min-w-[1120px] rounded-2xl border border-dashed border-stone-300 bg-[linear-gradient(90deg,rgba(214,211,209,.55)_1px,transparent_1px),linear-gradient(rgba(214,211,209,.55)_1px,transparent_1px)] bg-[size:32px_32px]">
-              {tables.map((table) => {
-                const activeOrder = tableOrderMap.get(table.Id);
-                const active = selectedTable?.Id === table.Id;
-                const layout = normalizeTableLayout(table);
-                return (
-                  <button
-                    key={table.Id}
-                    onClick={() => selectTable(table)}
-                    style={{
-                      left: layout.positionX,
-                      top: layout.positionY,
-                      width: layout.width,
-                      height: layout.height,
-                    }}
-                    className={`absolute rounded-2xl border p-3 text-left transition ${
-                      active
-                        ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200'
-                        : activeOrder
-                          ? 'border-emerald-200 bg-emerald-50 hover:border-emerald-400'
+            <div className="p-3 sm:p-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:hidden">
+                {tables.map((table) => {
+                  const activeOrder = tableOrderMap.get(table.Id);
+                  return (
+                    <button
+                      key={table.Id}
+                      onClick={() => selectTable(table)}
+                      className={`min-h-[112px] rounded-2xl border p-4 text-left transition active:scale-[.99] ${
+                        activeOrder
+                          ? 'border-emerald-200 bg-emerald-50'
                           : 'border-stone-200 bg-stone-50 hover:border-amber-300'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-xl font-extrabold text-stone-950">{table.Name}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${activeOrder ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-600'}`}>
-                        {activeOrder ? 'Đang dùng' : 'Trống'}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-xs font-semibold text-stone-500">{table.AreaName || 'Khu vực chính'}</p>
-                    {activeOrder && <p className="mt-1 text-xs text-emerald-700">{activeOrder.OrderNo}</p>}
-                  </button>
-                );
-              })}
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-2xl font-extrabold text-stone-950">{table.Name}</span>
+                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${activeOrder ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-600'}`}>
+                          {activeOrder ? 'Đang dùng' : 'Trống'}
+                        </span>
+                      </div>
+                      <p className="mt-3 text-sm font-semibold text-stone-500">{table.AreaName || 'Khu vực chính'}</p>
+                      {activeOrder && <p className="mt-1 truncate text-sm font-bold text-emerald-700">{activeOrder.OrderNo}</p>}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="hidden overflow-auto lg:block">
+                <div className="relative h-[calc(100vh-18rem)] min-h-[620px] min-w-[1120px] rounded-2xl border border-dashed border-stone-300 bg-[linear-gradient(90deg,rgba(214,211,209,.55)_1px,transparent_1px),linear-gradient(rgba(214,211,209,.55)_1px,transparent_1px)] bg-[size:32px_32px]">
+                {tables.map((table) => {
+                  const activeOrder = tableOrderMap.get(table.Id);
+                  const active = selectedTable?.Id === table.Id;
+                  const layout = normalizeTableLayout(table);
+                  return (
+                    <button
+                      key={table.Id}
+                      onClick={() => selectTable(table)}
+                      style={{
+                        left: layout.positionX,
+                        top: layout.positionY,
+                        width: layout.width,
+                        height: layout.height,
+                      }}
+                      className={`absolute rounded-2xl border p-3 text-left transition ${
+                        active
+                          ? 'border-amber-500 bg-amber-50 ring-2 ring-amber-200'
+                          : activeOrder
+                            ? 'border-emerald-200 bg-emerald-50 hover:border-emerald-400'
+                            : 'border-stone-200 bg-stone-50 hover:border-amber-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-xl font-extrabold text-stone-950">{table.Name}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${activeOrder ? 'bg-emerald-600 text-white' : 'bg-stone-200 text-stone-600'}`}>
+                          {activeOrder ? 'Đang dùng' : 'Trống'}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs font-semibold text-stone-500">{table.AreaName || 'Khu vực chính'}</p>
+                      {activeOrder && <p className="mt-1 text-xs text-emerald-700">{activeOrder.OrderNo}</p>}
+                    </button>
+                  );
+                })}
+                </div>
               </div>
             </div>
           </section>
 
           <section className={`min-w-0 rounded-2xl border border-stone-200 bg-white shadow-warm ${!selectedTable ? 'hidden' : ''}`}>
-            <div className="border-b border-stone-100 p-4">
+            <div className="border-b border-stone-100 p-3 sm:p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Menu order</p>
-                  <h2 className="text-2xl font-extrabold text-stone-950">
+                  <h2 className="text-xl font-extrabold text-stone-950 sm:text-2xl">
                     {selectedTable ? `Chọn món cho bàn ${selectedTable.Name}` : 'Chọn bàn để bắt đầu'}
                   </h2>
                   <button
@@ -755,7 +782,7 @@ export default function POS() {
                     Sơ đồ bàn
                   </button>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-[1fr_180px]">
+                <div className="grid w-full gap-2 sm:grid-cols-[1fr_180px] lg:max-w-xl">
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-stone-400" />
                     <input
@@ -779,13 +806,13 @@ export default function POS() {
               </div>
             </div>
 
-            <div className="grid gap-3 p-4 sm:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4 2xl:grid-cols-3">
               {pagedItems.map((item) => (
                 <button
                   key={item.Id}
                   disabled={!currentOrder || isSaving}
                   onClick={() => addItem(item)}
-                  className="group min-h-[138px] rounded-2xl border border-stone-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+                  className="group min-h-[112px] rounded-2xl border border-stone-200 bg-white p-3 text-left transition active:scale-[.99] hover:border-amber-400 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[138px] sm:p-4"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-800">{item.Code}</span>
@@ -793,35 +820,35 @@ export default function POS() {
                   </div>
                   <h3 className="mt-3 text-base font-extrabold text-stone-950">{item.Name}</h3>
                   <p className="mt-2 line-clamp-1 text-sm text-stone-500">{item.Description || item.Unit}</p>
-                  <p className="mt-3 text-xl font-extrabold text-emerald-700">{formatVnd(item.Price)}</p>
+                  <p className="mt-3 text-lg font-extrabold text-emerald-700 sm:text-xl">{formatVnd(item.Price)}</p>
                 </button>
               ))}
             </div>
 
-            <div className="flex items-center justify-between border-t border-stone-100 px-4 py-3 text-sm">
-              <span className="font-semibold text-stone-500">{filteredItems.length} món, hiển thị 10 món/trang</span>
-              <div className="flex items-center gap-2">
-                <button disabled={menuPage <= 1} onClick={() => setMenuPage((p) => p - 1)} className="rounded-lg border border-stone-200 px-3 py-1.5 font-bold disabled:opacity-40">Trước</button>
+            <div className="flex flex-col gap-3 border-t border-stone-100 px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-4">
+              <span className="font-semibold text-stone-500">{filteredItems.length} món, 10 món/trang</span>
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:flex">
+                <button disabled={menuPage <= 1} onClick={() => setMenuPage((p) => p - 1)} className="rounded-lg border border-stone-200 px-3 py-2 font-bold disabled:opacity-40">Trước</button>
                 <span className="font-bold text-stone-700">{menuPage}/{maxMenuPage}</span>
-                <button disabled={menuPage >= maxMenuPage} onClick={() => setMenuPage((p) => p + 1)} className="rounded-lg border border-stone-200 px-3 py-1.5 font-bold disabled:opacity-40">Sau</button>
+                <button disabled={menuPage >= maxMenuPage} onClick={() => setMenuPage((p) => p + 1)} className="rounded-lg border border-stone-200 px-3 py-2 font-bold disabled:opacity-40">Sau</button>
               </div>
             </div>
           </section>
 
-          <section className={`rounded-2xl border border-stone-200 bg-white shadow-warm ${!selectedTable ? 'hidden' : ''}`}>
-            <div className="border-b border-stone-100 p-4">
+          <section className={`rounded-2xl border border-stone-200 bg-white shadow-warm xl:sticky xl:top-4 xl:self-start ${!selectedTable ? 'hidden' : ''}`}>
+            <div className="border-b border-stone-100 p-3 sm:p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Order hiện tại</p>
-              <h2 className="text-2xl font-extrabold text-stone-950">{currentOrder ? currentOrder.TableName : 'Chưa chọn bàn'}</h2>
+              <h2 className="text-xl font-extrabold text-stone-950 sm:text-2xl">{currentOrder ? currentOrder.TableName : 'Chưa chọn bàn'}</h2>
               <p className="text-sm font-semibold text-amber-700">{currentOrder?.OrderNo || 'Mở bàn để tạo order'}</p>
             </div>
 
             {!currentOrder ? (
-              <div className="flex min-h-[360px] items-center justify-center p-8 text-center text-stone-500">
+              <div className="flex min-h-[240px] items-center justify-center p-6 text-center text-stone-500 sm:min-h-[360px] sm:p-8">
                 Chọn một bàn trống hoặc đang dùng để order.
               </div>
             ) : (
-              <div className="flex min-h-[520px] flex-col">
-                <div className="space-y-3 p-4">
+              <div className="flex min-h-0 flex-col sm:min-h-[520px]">
+                <div className="space-y-3 p-3 sm:p-4">
                   <div className="grid grid-cols-2 gap-3 rounded-2xl bg-stone-50 p-3">
                     <div>
                       <p className="text-xs font-bold uppercase text-stone-400">Tạm tính</p>
@@ -852,7 +879,7 @@ export default function POS() {
                   />
                 </div>
 
-                <div className="flex-1 space-y-3 overflow-y-auto border-y border-stone-100 p-4">
+                <div className="max-h-[420px] flex-1 space-y-3 overflow-y-auto border-y border-stone-100 p-3 sm:p-4 xl:max-h-[calc(100vh-33rem)]">
                   {currentOrder.items?.length ? (
                     currentOrder.items.map((item) => (
                       <div key={item.Id} className="rounded-2xl border border-stone-200 bg-white p-3">
@@ -865,8 +892,8 @@ export default function POS() {
                             {item.Status === 'SENT' ? 'Đã gửi' : 'Cần xác nhận'}
                           </span>
                         </div>
-                        <div className="mt-3 flex items-center gap-2">
-                          <button onClick={() => updateItem(item, { Quantity: Number(item.Quantity) - 1 })} className="rounded-lg border border-stone-200 p-2"><Minus className="h-4 w-4" /></button>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <button onClick={() => updateItem(item, { Quantity: Number(item.Quantity) - 1 })} className="rounded-lg border border-stone-200 p-2.5"><Minus className="h-4 w-4" /></button>
                           <input
                             type="number"
                             min={0}
@@ -874,14 +901,14 @@ export default function POS() {
                             onChange={(e) => updateItem(item, { Quantity: Number(e.target.value || 0) })}
                             className="h-9 w-16 rounded-lg border border-stone-200 text-center text-sm font-bold"
                           />
-                          <button onClick={() => updateItem(item, { Quantity: Number(item.Quantity) + 1 })} className="rounded-lg border border-stone-200 p-2"><Plus className="h-4 w-4" /></button>
+                          <button onClick={() => updateItem(item, { Quantity: Number(item.Quantity) + 1 })} className="rounded-lg border border-stone-200 p-2.5"><Plus className="h-4 w-4" /></button>
                           <input
                             value={item.Note || ''}
                             onChange={(e) => updateItem(item, { Note: e.target.value })}
                             placeholder="Ghi chú món"
-                            className="h-9 min-w-0 flex-1 rounded-lg border border-stone-200 px-2 text-sm"
+                            className="h-10 min-w-0 flex-[1_1_100%] rounded-lg border border-stone-200 px-2 text-sm sm:flex-1"
                           />
-                          <button onClick={() => deleteItem(item.Id)} className="rounded-lg border border-rose-100 p-2 text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                          <button onClick={() => deleteItem(item.Id)} className="rounded-lg border border-rose-100 p-2.5 text-rose-600"><Trash2 className="h-4 w-4" /></button>
                         </div>
                       </div>
                     ))
@@ -890,7 +917,7 @@ export default function POS() {
                   )}
                 </div>
 
-                <div className="space-y-3 p-4">
+                <div className="space-y-3 p-3 sm:p-4">
                   <button
                     onClick={confirmKitchen}
                     disabled={!hasKitchenChanges}
@@ -901,7 +928,7 @@ export default function POS() {
                     <Check className="h-4 w-4" />
                     Xác nhận order gửi bếp
                   </button>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     <button onClick={() => printOrder('KITCHEN')} className="rounded-xl border border-stone-200 px-2 py-3 text-xs font-extrabold text-stone-700">Bếp</button>
                     <button onClick={() => printOrder('TEMPORARY')} className="rounded-xl border border-stone-200 px-2 py-3 text-xs font-extrabold text-stone-700">Tạm tính</button>
                     <button onClick={() => printOrder('PAYMENT')} className="rounded-xl border border-stone-200 bg-stone-900 px-2 py-3 text-xs font-extrabold text-white">Thanh toán</button>
@@ -1093,16 +1120,16 @@ export default function POS() {
 
       {activeTab === 'dashboard' && (
         <div className="space-y-5">
-          <div className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-6 shadow-warm lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 shadow-warm sm:p-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-wider text-stone-500">Dashboard POS</p>
-              <h2 className="mt-2 text-4xl font-extrabold text-stone-950">{formatShortDate(historyDate)}</h2>
+              <h2 className="mt-2 text-2xl font-extrabold text-stone-950 sm:text-4xl">{formatShortDate(historyDate)}</h2>
               <p className="mt-2 text-sm font-semibold text-stone-600">Doanh thu, lịch sử đơn và món bán chạy theo dữ liệu CAO_BNHHotelManagement.</p>
             </div>
             <div className="flex flex-col gap-3 sm:items-end">
               <input type="date" value={historyDate} onChange={(e) => setHistoryDate(e.target.value)} className="h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-extrabold text-stone-800 shadow-sm" />
               <div className="text-left sm:text-right">
-                <p className="text-4xl font-black text-emerald-700">{formatVnd(dashboard?.summary.Revenue)}</p>
+                <p className="text-3xl font-black text-emerald-700 sm:text-4xl">{formatVnd(dashboard?.summary.Revenue)}</p>
                 <p className="mt-1 text-xs font-extrabold uppercase tracking-wider text-stone-500">Doanh thu trong ngày</p>
               </div>
             </div>
@@ -1317,7 +1344,7 @@ function Metric({
   return (
     <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-warm">
       <p className="text-xs font-bold uppercase tracking-wider text-stone-400">{label}</p>
-      <p className="mt-2 text-2xl font-extrabold text-stone-950">{value}</p>
+      <p className="mt-2 text-xl font-extrabold text-stone-950 sm:text-2xl">{value}</p>
       {hint && (
         <p className={`mt-3 text-xs font-extrabold ${tone === 'up' ? 'text-emerald-700' : tone === 'down' ? 'text-rose-600' : 'text-stone-500'}`}>
           {hint}
