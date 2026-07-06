@@ -248,6 +248,7 @@ export default function POS() {
   const [menuEditingId, setMenuEditingId] = useState<string | null>(null);
   const [paymentForm, setPaymentForm] = useState(emptyPaymentForm);
   const [paymentSetting, setPaymentSetting] = useState<PosPaymentSetting | null>(null);
+  const [itemNoteDrafts, setItemNoteDrafts] = useState<Record<string, string>>({});
   const [editingTemplate, setEditingTemplate] = useState<PrintTemplate | null>(null);
   const [dragState, setDragState] = useState<{
     id: string;
@@ -317,6 +318,16 @@ export default function POS() {
   useEffect(() => {
     setDiscount(Number(currentOrder?.DiscountAmount || 0));
   }, [currentOrder?.Id, currentOrder?.DiscountAmount]);
+
+  useEffect(() => {
+    setItemNoteDrafts((current) => {
+      if (!currentOrder?.items?.length) return {};
+      return currentOrder.items.reduce<Record<string, string>>((result, item) => {
+        result[item.Id] = current[item.Id] ?? item.Note ?? '';
+        return result;
+      }, {});
+    });
+  }, [currentOrder?.Id, currentOrder?.items?.length]);
 
   const tableOrderMap = useMemo(() => {
     const result = new Map<string, PosOrder>();
@@ -456,6 +467,12 @@ export default function POS() {
       setCurrentOrder(res.data);
       syncOpenOrder(res.data);
     }
+  };
+
+  const saveItemNote = async (item: PosOrderItem) => {
+    const note = itemNoteDrafts[item.Id] ?? '';
+    if (note === (item.Note || '')) return;
+    await updateItem(item, { Note: note });
   };
 
   const deleteItem = async (itemId: string) => {
@@ -965,23 +982,40 @@ export default function POS() {
                             {item.Status === 'SENT' ? 'Đã gửi' : 'Cần xác nhận'}
                           </span>
                         </div>
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <button onClick={() => updateItem(item, { Quantity: Number(item.Quantity) - 1 })} className="rounded-lg border border-stone-200 p-2.5"><Minus className="h-4 w-4" /></button>
-                          <input
-                            type="number"
-                            min={0}
-                            value={item.Quantity}
-                            onChange={(e) => updateItem(item, { Quantity: Number(e.target.value || 0) })}
-                            className="h-9 w-16 rounded-lg border border-stone-200 text-center text-sm font-bold"
-                          />
-                          <button onClick={() => updateItem(item, { Quantity: Number(item.Quantity) + 1 })} className="rounded-lg border border-stone-200 p-2.5"><Plus className="h-4 w-4" /></button>
-                          <input
-                            value={item.Note || ''}
-                            onChange={(e) => updateItem(item, { Note: e.target.value })}
-                            placeholder="Ghi chú món"
-                            className="h-10 min-w-0 flex-[1_1_100%] rounded-lg border border-stone-200 px-2 text-sm sm:flex-1"
-                          />
-                          <button onClick={() => deleteItem(item.Id)} className="rounded-lg border border-rose-100 p-2.5 text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                        <div className="mt-3 grid gap-2">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => updateItem(item, { Quantity: Number(item.Quantity) - 1 })} className="rounded-lg border border-stone-200 p-2.5"><Minus className="h-4 w-4" /></button>
+                            <input
+                              type="number"
+                              min={0}
+                              value={item.Quantity}
+                              onChange={(e) => updateItem(item, { Quantity: Number(e.target.value || 0) })}
+                              className="h-10 w-20 rounded-lg border border-stone-200 text-center text-base font-bold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                            />
+                            <button onClick={() => updateItem(item, { Quantity: Number(item.Quantity) + 1 })} className="rounded-lg border border-stone-200 p-2.5"><Plus className="h-4 w-4" /></button>
+                            <div className="flex-1" />
+                            <button onClick={() => deleteItem(item.Id)} className="rounded-lg border border-rose-100 p-2.5 text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                          </div>
+                          <div
+                            className="rounded-xl border border-stone-200 bg-stone-50 p-1 transition focus-within:border-amber-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-100"
+                            onClick={(event) => {
+                              const input = event.currentTarget.querySelector('input');
+                              input?.focus();
+                            }}
+                          >
+                            <input
+                              value={itemNoteDrafts[item.Id] ?? item.Note ?? ''}
+                              onChange={(e) => setItemNoteDrafts((current) => ({ ...current, [item.Id]: e.target.value }))}
+                              onBlur={() => saveItemNote(item)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                              placeholder="Ghi chú món"
+                              className="h-12 w-full rounded-lg bg-transparent px-3 text-base font-semibold text-stone-900 outline-none placeholder:text-stone-400"
+                            />
+                          </div>
                         </div>
                       </div>
                     ))
