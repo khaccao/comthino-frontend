@@ -78,11 +78,22 @@ type PosOrder = {
   ServiceCharge: number;
   VatAmount: number;
   TotalAmount: number;
+  PaymentQrUrl?: string;
   PaymentMethod?: string;
   CreatedAt: string;
   PaidAt?: string;
   ItemCount?: number;
   items?: PosOrderItem[];
+};
+
+type PosPaymentSetting = {
+  Id?: string;
+  BankBin: string;
+  BankCode: string;
+  BankName: string;
+  AccountNo: string;
+  AccountName: string;
+  QrTemplate: string;
 };
 
 type PrintTemplate = {
@@ -143,6 +154,29 @@ const replaceToken = (content: string, token: string, value: string) => content.
 const isOrderInUse = (order?: PosOrder | null) =>
   Boolean(order && order.Status !== 'PAID' && (order.Status === 'ORDERED' || Number(order.ItemCount || 0) > 0 || Number(order.items?.length || 0) > 0));
 
+const cleanTransferInfo = (value = '') =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9 ._-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
+    .slice(0, 100);
+
+const buildVietQrUrl = (setting: typeof emptyPaymentForm, amount: number | string, addInfo: string) => {
+  const bankBin = String(setting.bankBin || '').trim();
+  const accountNo = String(setting.accountNo || '').replace(/\s+/g, '');
+  const template = String(setting.qrTemplate || 'compact2').trim() || 'compact2';
+  const safeAmount = Math.max(0, Math.round(Number(amount || 0)));
+  if (!bankBin || !accountNo || safeAmount <= 0) return '';
+  const params = new URLSearchParams();
+  params.set('amount', String(safeAmount));
+  params.set('addInfo', cleanTransferInfo(addInfo || 'COMTHINO'));
+  if (setting.accountName) params.set('accountName', setting.accountName.trim());
+  return `https://img.vietqr.io/image/${bankBin}-${accountNo}-${template}.jpg?${params.toString()}`;
+};
+
 const tabs = [
   { key: 'pos', label: 'Máy POS', icon: Utensils },
   { key: 'setup', label: 'Setup bàn/menu', icon: Edit2 },
@@ -177,6 +211,14 @@ const emptyMenuForm = {
   sortOrder: 0,
   isActive: true,
 };
+const emptyPaymentForm = {
+  bankBin: '970407',
+  bankCode: 'TCB',
+  bankName: 'Techcombank',
+  accountNo: '19035748277012',
+  accountName: 'NGUYEN KHAC CAO',
+  qrTemplate: 'compact2',
+};
 
 export default function POS() {
   const [activeTab, setActiveTab] = useState<TabKey>('pos');
@@ -204,6 +246,8 @@ export default function POS() {
   const [categoryEditingId, setCategoryEditingId] = useState<string | null>(null);
   const [menuForm, setMenuForm] = useState(emptyMenuForm);
   const [menuEditingId, setMenuEditingId] = useState<string | null>(null);
+  const [paymentForm, setPaymentForm] = useState(emptyPaymentForm);
+  const [paymentSetting, setPaymentSetting] = useState<PosPaymentSetting | null>(null);
   const [editingTemplate, setEditingTemplate] = useState<PrintTemplate | null>(null);
   const [dragState, setDragState] = useState<{
     id: string;
@@ -221,6 +265,17 @@ export default function POS() {
         setMenuItems(res.data.menuItems || []);
         setOpenOrders(res.data.openOrders || []);
         setTemplates(res.data.templates || []);
+        if (res.data.paymentSetting) {
+          setPaymentSetting(res.data.paymentSetting);
+          setPaymentForm({
+            bankBin: res.data.paymentSetting.BankBin || emptyPaymentForm.bankBin,
+            bankCode: res.data.paymentSetting.BankCode || emptyPaymentForm.bankCode,
+            bankName: res.data.paymentSetting.BankName || emptyPaymentForm.bankName,
+            accountNo: res.data.paymentSetting.AccountNo || emptyPaymentForm.accountNo,
+            accountName: res.data.paymentSetting.AccountName || emptyPaymentForm.accountName,
+            qrTemplate: res.data.paymentSetting.QrTemplate || emptyPaymentForm.qrTemplate,
+          });
+        }
         setEditingTemplate((res.data.templates || [])[0] || null);
       }
     } catch (error) {
@@ -467,7 +522,11 @@ export default function POS() {
     html = replaceToken(html, '{{VatAmount}}', formatVnd(currentOrder.VatAmount));
     html = replaceToken(html, '{{DiscountAmount}}', formatVnd(currentOrder.DiscountAmount));
     html = replaceToken(html, '{{TotalAmount}}', formatVnd(currentOrder.TotalAmount));
-    html = replaceToken(html, '{{PaymentQrUrl}}', '');
+    html = replaceToken(
+      html,
+      '{{PaymentQrUrl}}',
+      currentOrder.PaymentQrUrl || buildVietQrUrl(paymentForm, currentOrder.TotalAmount, currentOrder.OrderNo),
+    );
     const printWindow = window.open('', '_blank', 'width=420,height=720');
     if (!printWindow) return;
     printWindow.document.write(`
@@ -520,6 +579,24 @@ export default function POS() {
       setMenuForm(emptyMenuForm);
       setMenuEditingId(null);
       loadBootstrap();
+    }
+  };
+
+  const savePaymentSetting = async () => {
+    const res = await adminApi.updatePosPaymentSetting(paymentForm);
+    if (res.success) {
+      setPaymentSetting(res.data);
+      setPaymentForm({
+        bankBin: res.data.BankBin || emptyPaymentForm.bankBin,
+        bankCode: res.data.BankCode || emptyPaymentForm.bankCode,
+        bankName: res.data.BankName || emptyPaymentForm.bankName,
+        accountNo: res.data.AccountNo || emptyPaymentForm.accountNo,
+        accountName: res.data.AccountName || emptyPaymentForm.accountName,
+        qrTemplate: res.data.QrTemplate || emptyPaymentForm.qrTemplate,
+      });
+      setToast('Đã lưu cấu hình QR thanh toán.');
+      await loadBootstrap();
+      if (currentOrder?.Id) await refreshCurrentOrder(currentOrder.Id);
     }
   };
 
@@ -609,11 +686,7 @@ export default function POS() {
     html = replaceToken(html, '{{VatAmount}}', '0 đ');
     html = replaceToken(html, '{{DiscountAmount}}', '0 đ');
     html = replaceToken(html, '{{TotalAmount}}', '125.000 đ');
-    html = replaceToken(
-      html,
-      '{{PaymentQrUrl}}',
-      'https://img.vietqr.io/image/970436-19035748277012-compact2.png?amount=125000&addInfo=POS260705-001&accountName=NGUYEN%20KHAC%20CAO',
-    );
+    html = replaceToken(html, '{{PaymentQrUrl}}', buildVietQrUrl(paymentForm, 125000, 'POS260705-001'));
     return `<!doctype html>
 <html>
 <head>
@@ -634,7 +707,7 @@ export default function POS() {
 </head>
 <body><div class="preview-wrap">${html}</div></body>
 </html>`;
-  }, [editingTemplate?.Code, editingTemplate?.Content]);
+  }, [editingTemplate?.Code, editingTemplate?.Content, paymentForm]);
 
   if (isLoading) {
     return (
@@ -1060,6 +1133,44 @@ export default function POS() {
             </FormGrid>
             <SaveButton onClick={saveMenuItem} label={menuEditingId ? 'Cập nhật món' : 'Thêm món'} />
             <SimpleList items={menuItems.slice(0, 12).map((item) => ({ id: item.Id, title: item.Name, subtitle: `${item.Code} - ${formatVnd(item.Price)}` }))} onEdit={(id) => editMenuItem(menuItems.find((item) => item.Id === id)!)} />
+          </SetupCard>
+
+          <SetupCard title="Tài khoản QR thanh toán">
+            <FormGrid>
+              <Input label="Bank BIN" value={paymentForm.bankBin} onChange={(value) => setPaymentForm({ ...paymentForm, bankBin: value })} />
+              <Input label="Mã ngân hàng" value={paymentForm.bankCode} onChange={(value) => setPaymentForm({ ...paymentForm, bankCode: value })} />
+              <Input label="Tên ngân hàng" value={paymentForm.bankName} onChange={(value) => setPaymentForm({ ...paymentForm, bankName: value })} />
+              <Input label="Số tài khoản" value={paymentForm.accountNo} onChange={(value) => setPaymentForm({ ...paymentForm, accountNo: value })} />
+              <Input label="Tên tài khoản" value={paymentForm.accountName} onChange={(value) => setPaymentForm({ ...paymentForm, accountName: value })} />
+              <label className="text-xs font-bold uppercase text-stone-500">
+                Mẫu QR
+                <select value={paymentForm.qrTemplate} onChange={(e) => setPaymentForm({ ...paymentForm, qrTemplate: e.target.value })} className="mt-1 h-10 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm normal-case outline-none">
+                  <option value="compact2">compact2 - Có logo VietQR</option>
+                  <option value="compact">compact</option>
+                  <option value="qr_only">qr_only</option>
+                  <option value="print">print</option>
+                </select>
+              </label>
+            </FormGrid>
+            <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3">
+              <div className="grid gap-3 sm:grid-cols-[150px_minmax(0,1fr)]">
+                <div className="rounded-xl bg-white p-2">
+                  {buildVietQrUrl(paymentForm, 110000, 'POS-DEMO') ? (
+                    <img src={buildVietQrUrl(paymentForm, 110000, 'POS-DEMO')} alt="VietQR preview" className="h-36 w-full object-contain" />
+                  ) : (
+                    <div className="flex h-36 items-center justify-center text-center text-xs font-bold text-stone-400">Nhập đủ thông tin để xem QR</div>
+                  )}
+                </div>
+                <div className="text-sm text-stone-600">
+                  <p className="font-extrabold text-stone-950">{paymentForm.bankName || paymentSetting?.BankName}</p>
+                  <p className="mt-1">Số TK: <b>{paymentForm.accountNo || paymentSetting?.AccountNo}</b></p>
+                  <p>Tên TK: <b>{paymentForm.accountName || paymentSetting?.AccountName}</b></p>
+                  <p>Nội dung mẫu: <b>POS-DEMO</b></p>
+                  <p>Số tiền mẫu: <b>{formatVnd(110000)}</b></p>
+                </div>
+              </div>
+            </div>
+            <SaveButton onClick={savePaymentSetting} label="Lưu QR thanh toán" />
           </SetupCard>
         </div>
         </div>

@@ -194,6 +194,7 @@ export const adminApi = {
     api.post(`/admin/pos/orders/${orderId}/pay`, { paymentMethod }).then(res => res.data),
   getPosHistory: (date?: string) => api.get('/admin/pos/orders/history', { params: { date } }).then(res => res.data),
   getPosDashboard: (date?: string) => api.get('/admin/pos/dashboard', { params: { date } }).then(res => res.data),
+  updatePosPaymentSetting: (data: any) => api.put('/admin/pos/payment-setting', data).then(res => res.data),
   updatePosPrintTemplate: (code: string, content: string) =>
     api.put(`/admin/pos/print-templates/${code}`, { content }).then(res => res.data),
 };
