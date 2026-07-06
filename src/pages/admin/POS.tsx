@@ -475,6 +475,27 @@ export default function POS() {
     await updateItem(item, { Note: note });
   };
 
+  const saveDirtyItemNotes = async () => {
+    if (!currentOrder) return null;
+    let latestOrder = currentOrder;
+    for (const item of currentOrder.items || []) {
+      const note = itemNoteDrafts[item.Id] ?? '';
+      if (note !== (item.Note || '')) {
+        const res = await adminApi.updatePosOrderItem(currentOrder.Id, item.Id, {
+          quantity: item.Quantity,
+          unitPrice: item.UnitPrice,
+          note,
+        });
+        if (res.success) latestOrder = res.data;
+      }
+    }
+    if (latestOrder !== currentOrder) {
+      setCurrentOrder(latestOrder);
+      syncOpenOrder(latestOrder);
+    }
+    return latestOrder;
+  };
+
   const deleteItem = async (itemId: string) => {
     if (!currentOrder) return;
     const res = await adminApi.deletePosOrderItem(currentOrder.Id, itemId);
@@ -499,7 +520,9 @@ export default function POS() {
 
   const confirmKitchen = async () => {
     if (!currentOrder || !currentOrder.items?.length) return;
-    const res = await adminApi.confirmPosKitchen(currentOrder.Id);
+    const orderToConfirm = await saveDirtyItemNotes();
+    if (!orderToConfirm) return;
+    const res = await adminApi.confirmPosKitchen(orderToConfirm.Id);
     if (res.success) {
       setCurrentOrder(res.data);
       syncOpenOrder(res.data);
@@ -523,10 +546,13 @@ export default function POS() {
     if (!currentOrder) return;
     const template = templates.find((item) => item.Code === type);
     const rows = (currentOrder.items || [])
-      .map(
-        (item) =>
-          `<tr><td>${item.Name}${item.Note ? `<br><small>${item.Note}</small>` : ''}</td><td>${item.Quantity}</td><td>${formatVnd(item.UnitPrice)}</td><td>${formatVnd(Number(item.UnitPrice) * Number(item.Quantity))}</td></tr>`,
-      )
+      .map((item) => {
+        const note = itemNoteDrafts[item.Id] ?? item.Note ?? '';
+        if (type === 'KITCHEN') {
+          return `<tr><td>${item.Name}</td><td>${item.Quantity}</td><td>${note || ''}</td></tr>`;
+        }
+        return `<tr><td>${item.Name}${note ? `<br><small>${note}</small>` : ''}</td><td>${item.Quantity}</td><td>${formatVnd(item.UnitPrice)}</td><td>${formatVnd(Number(item.UnitPrice) * Number(item.Quantity))}</td></tr>`;
+      })
       .join('');
     let html = template?.Content || '';
     html = replaceToken(html, '{{OrderNo}}', currentOrder.OrderNo);
