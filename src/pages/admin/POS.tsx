@@ -573,7 +573,7 @@ export default function POS() {
     html = replaceToken(
       html,
       '{{PaymentQrUrl}}',
-      currentOrder.PaymentQrUrl || buildVietQrUrl(paymentForm, currentOrder.TotalAmount, currentOrder.OrderNo),
+      buildVietQrUrl(paymentForm, currentOrder.TotalAmount, currentOrder.OrderNo) || currentOrder.PaymentQrUrl || '',
     );
     const printWindow = window.open('', '_blank', 'width=420,height=720');
     if (!printWindow) return;
@@ -648,6 +648,40 @@ export default function POS() {
       });
       setToast('Đã lưu cấu hình QR thanh toán.');
       await loadBootstrap();
+      if (currentOrder?.Id) await refreshCurrentOrder(currentOrder.Id);
+    }
+  };
+
+  const activatePaymentSetting = async (settingId: string) => {
+    const selected = paymentSettings.find((item) => item.Id === settingId);
+    if (!selected) return;
+    const nextForm = {
+      id: selected.Id || '',
+      bankBin: selected.BankBin || emptyPaymentForm.bankBin,
+      bankCode: selected.BankCode || emptyPaymentForm.bankCode,
+      bankName: selected.BankName || emptyPaymentForm.bankName,
+      accountNo: selected.AccountNo || emptyPaymentForm.accountNo,
+      accountName: selected.AccountName || emptyPaymentForm.accountName,
+      qrTemplate: selected.QrTemplate || emptyPaymentForm.qrTemplate,
+    };
+    setPaymentForm(nextForm);
+    const res = await adminApi.updatePosPaymentSetting(nextForm);
+    if (res.success) {
+      const activeSetting = res.data?.paymentSetting || res.data;
+      setPaymentSetting(activeSetting);
+      setPaymentSettings(res.data?.paymentSettings || (activeSetting ? [activeSetting] : []));
+      if (activeSetting) {
+        setPaymentForm({
+          id: activeSetting.Id || '',
+          bankBin: activeSetting.BankBin || emptyPaymentForm.bankBin,
+          bankCode: activeSetting.BankCode || emptyPaymentForm.bankCode,
+          bankName: activeSetting.BankName || emptyPaymentForm.bankName,
+          accountNo: activeSetting.AccountNo || emptyPaymentForm.accountNo,
+          accountName: activeSetting.AccountName || emptyPaymentForm.accountName,
+          qrTemplate: activeSetting.QrTemplate || emptyPaymentForm.qrTemplate,
+        });
+      }
+      setToast(`Đã chọn QR ${selected.AccountNo}.`);
       if (currentOrder?.Id) await refreshCurrentOrder(currentOrder.Id);
     }
   };
@@ -984,6 +1018,23 @@ export default function POS() {
                       <p className="text-lg font-extrabold text-emerald-700">{formatVnd(currentOrder.TotalAmount)}</p>
                     </div>
                   </div>
+                  <label className="block rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold uppercase text-amber-900">
+                    QR chuyển tiền
+                    <select
+                      value={paymentForm.id || paymentSetting?.Id || ''}
+                      onChange={(e) => activatePaymentSetting(e.target.value)}
+                      className="mt-2 h-10 w-full rounded-xl border border-amber-200 bg-white px-3 text-sm font-extrabold normal-case text-stone-900 outline-none focus:border-amber-500"
+                    >
+                      {paymentSettings.map((setting) => (
+                        <option key={setting.Id || `${setting.BankBin}-${setting.AccountNo}`} value={setting.Id || ''}>
+                          {setting.BankName} - {setting.AccountNo} - {setting.AccountName}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="mt-2 block text-[11px] font-semibold normal-case text-amber-800">
+                      Bill thanh toán sẽ in QR theo tài khoản đang chọn.
+                    </span>
+                  </label>
                   <div className="flex gap-2">
                     <input
                       type="number"
