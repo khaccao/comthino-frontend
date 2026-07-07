@@ -94,6 +94,7 @@ type PosPaymentSetting = {
   AccountNo: string;
   AccountName: string;
   QrTemplate: string;
+  IsActive?: boolean;
 };
 
 type PrintTemplate = {
@@ -212,6 +213,7 @@ const emptyMenuForm = {
   isActive: true,
 };
 const emptyPaymentForm = {
+  id: '',
   bankBin: '970407',
   bankCode: 'TCB',
   bankName: 'Techcombank',
@@ -248,6 +250,7 @@ export default function POS() {
   const [menuEditingId, setMenuEditingId] = useState<string | null>(null);
   const [paymentForm, setPaymentForm] = useState(emptyPaymentForm);
   const [paymentSetting, setPaymentSetting] = useState<PosPaymentSetting | null>(null);
+  const [paymentSettings, setPaymentSettings] = useState<PosPaymentSetting[]>([]);
   const [itemNoteDrafts, setItemNoteDrafts] = useState<Record<string, string>>({});
   const [editingTemplate, setEditingTemplate] = useState<PrintTemplate | null>(null);
   const [dragState, setDragState] = useState<{
@@ -266,9 +269,11 @@ export default function POS() {
         setMenuItems(res.data.menuItems || []);
         setOpenOrders(res.data.openOrders || []);
         setTemplates(res.data.templates || []);
+        setPaymentSettings(res.data.paymentSettings || (res.data.paymentSetting ? [res.data.paymentSetting] : []));
         if (res.data.paymentSetting) {
           setPaymentSetting(res.data.paymentSetting);
           setPaymentForm({
+            id: res.data.paymentSetting.Id || '',
             bankBin: res.data.paymentSetting.BankBin || emptyPaymentForm.bankBin,
             bankCode: res.data.paymentSetting.BankCode || emptyPaymentForm.bankCode,
             bankName: res.data.paymentSetting.BankName || emptyPaymentForm.bankName,
@@ -628,14 +633,18 @@ export default function POS() {
   const savePaymentSetting = async () => {
     const res = await adminApi.updatePosPaymentSetting(paymentForm);
     if (res.success) {
-      setPaymentSetting(res.data);
+      const activeSetting = res.data?.paymentSetting || res.data;
+      const settingList = res.data?.paymentSettings || (activeSetting ? [activeSetting] : []);
+      setPaymentSetting(activeSetting);
+      setPaymentSettings(settingList);
       setPaymentForm({
-        bankBin: res.data.BankBin || emptyPaymentForm.bankBin,
-        bankCode: res.data.BankCode || emptyPaymentForm.bankCode,
-        bankName: res.data.BankName || emptyPaymentForm.bankName,
-        accountNo: res.data.AccountNo || emptyPaymentForm.accountNo,
-        accountName: res.data.AccountName || emptyPaymentForm.accountName,
-        qrTemplate: res.data.QrTemplate || emptyPaymentForm.qrTemplate,
+        id: activeSetting?.Id || '',
+        bankBin: activeSetting?.BankBin || emptyPaymentForm.bankBin,
+        bankCode: activeSetting?.BankCode || emptyPaymentForm.bankCode,
+        bankName: activeSetting?.BankName || emptyPaymentForm.bankName,
+        accountNo: activeSetting?.AccountNo || emptyPaymentForm.accountNo,
+        accountName: activeSetting?.AccountName || emptyPaymentForm.accountName,
+        qrTemplate: activeSetting?.QrTemplate || emptyPaymentForm.qrTemplate,
       });
       setToast('Đã lưu cấu hình QR thanh toán.');
       await loadBootstrap();
@@ -1197,6 +1206,36 @@ export default function POS() {
 
           <SetupCard title="Tài khoản QR thanh toán">
             <FormGrid>
+              <label className="text-xs font-bold uppercase text-stone-500 sm:col-span-2">
+                Tài khoản đang dùng
+                <select
+                  value={paymentForm.id || ''}
+                  onChange={(e) => {
+                    const selected = paymentSettings.find((item) => item.Id === e.target.value);
+                    if (!selected) {
+                      setPaymentForm(emptyPaymentForm);
+                      return;
+                    }
+                    setPaymentForm({
+                      id: selected.Id || '',
+                      bankBin: selected.BankBin || emptyPaymentForm.bankBin,
+                      bankCode: selected.BankCode || emptyPaymentForm.bankCode,
+                      bankName: selected.BankName || emptyPaymentForm.bankName,
+                      accountNo: selected.AccountNo || emptyPaymentForm.accountNo,
+                      accountName: selected.AccountName || emptyPaymentForm.accountName,
+                      qrTemplate: selected.QrTemplate || emptyPaymentForm.qrTemplate,
+                    });
+                  }}
+                  className="mt-1 h-10 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm normal-case outline-none"
+                >
+                  <option value="">Thêm tài khoản mới</option>
+                  {paymentSettings.map((setting) => (
+                    <option key={setting.Id || `${setting.BankBin}-${setting.AccountNo}`} value={setting.Id || ''}>
+                      {setting.IsActive ? 'Đang dùng - ' : ''}{setting.BankName} - {setting.AccountNo} - {setting.AccountName}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <Input label="Bank BIN" value={paymentForm.bankBin} onChange={(value) => setPaymentForm({ ...paymentForm, bankBin: value })} />
               <Input label="Mã ngân hàng" value={paymentForm.bankCode} onChange={(value) => setPaymentForm({ ...paymentForm, bankCode: value })} />
               <Input label="Tên ngân hàng" value={paymentForm.bankName} onChange={(value) => setPaymentForm({ ...paymentForm, bankName: value })} />
