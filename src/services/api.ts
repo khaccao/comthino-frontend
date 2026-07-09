@@ -198,3 +198,66 @@ export const adminApi = {
   updatePosPrintTemplate: (code: string, content: string) =>
     api.put(`/admin/pos/print-templates/${code}`, { content }).then(res => res.data),
 };
+
+// --- RBAC API ---
+export const userApi = {
+  getAll: () => api.get('/admin/users').then(r => r.data),
+  getById: (id: string) => api.get(`/admin/users/${id}`).then(r => r.data),
+  create: (data: any) => api.post('/admin/users', data).then(r => r.data),
+  update: (id: string, data: any) => api.put(`/admin/users/${id}`, data).then(r => r.data),
+  lock: (id: string) => api.patch(`/admin/users/${id}/lock`).then(r => r.data),
+  unlock: (id: string) => api.patch(`/admin/users/${id}/unlock`).then(r => r.data),
+  delete: (id: string) => api.delete(`/admin/users/${id}`).then(r => r.data),
+  getRoles: (userId: string) => api.get(`/admin/users/${userId}/roles`).then(r => r.data),
+  updateRoles: (userId: string, roles: string[]) =>
+    api.put(`/admin/users/${userId}/roles`, { roles }).then(r => r.data),
+};
+
+export const roleApi = {
+  getAll: () => api.get('/admin/roles').then(r => r.data),
+  getById: (id: string) => api.get(`/admin/roles/${id}`).then(r => r.data),
+  create: (data: any) => api.post('/admin/roles', data).then(r => r.data),
+  update: (id: string, data: any) => api.put(`/admin/roles/${id}`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/admin/roles/${id}`).then(r => r.data),
+  getPermissions: (roleId: string) => api.get(`/admin/roles/${roleId}/permissions`).then(r => r.data),
+  updatePermissions: (roleId: string, permissions: any[]) =>
+    api.put(`/admin/roles/${roleId}/permissions`, { permissions }).then(r => r.data),
+};
+
+export const permissionApi = {
+  getAll: () => api.get('/admin/permissions').then(r => r.data),
+  getMenus: () => api.get('/admin/menus').then(r => r.data),
+};
+
+// --- PAYMENT API ---
+export const paymentApi = {
+  // Master data
+  getExpenseCategories: () => api.get('/admin/payments/categories').then(r => r.data),
+  getPaymentMethods: () => api.get('/admin/payments/methods').then(r => r.data),
+  getCashAccounts: () => api.get('/admin/payments/cash-accounts').then(r => r.data),
+  // Suppliers
+  getSuppliers: () => api.get('/admin/suppliers').then(r => r.data),
+  createSupplier: (data: any) => api.post('/admin/suppliers', data).then(r => r.data),
+  updateSupplier: (id: string, data: any) => api.put(`/admin/suppliers/${id}`, data).then(r => r.data),
+  deleteSupplier: (id: string) => api.delete(`/admin/suppliers/${id}`).then(r => r.data),
+  // Payment Requests
+  getRequests: () => api.get('/admin/payments/requests').then(r => r.data),
+  createRequest: (data: any) => api.post('/admin/payments/requests', data).then(r => r.data),
+  approveRequest: (id: string, status: string) =>
+    api.patch(`/admin/payments/requests/${id}/approve`, { status }).then(r => r.data),
+  deleteRequest: (id: string) => api.delete(`/admin/payments/requests/${id}`).then(r => r.data),
+  // Payment Vouchers
+  getVouchers: () => api.get('/admin/payments/vouchers').then(r => r.data),
+  createVoucher: (data: any) => api.post('/admin/payments/vouchers', data).then(r => r.data),
+  postVoucher: (id: string) => api.post(`/admin/payments/vouchers/${id}/post`).then(r => r.data),
+  deleteVoucher: (id: string) => api.delete(`/admin/payments/vouchers/${id}`).then(r => r.data),
+  // Dashboard
+  getDashboard: () => api.get('/admin/payments/dashboard').then(r => r.data),
+};
+
+// --- AUDIT LOG API ---
+export const auditApi = {
+  getLogs: (params?: { page?: number; limit?: number }) =>
+    api.get('/admin/audit-logs', { params }).then(r => r.data),
+};
+

@@ -1,11 +1,60 @@
+export interface UserPermission {
+  menuCode: string;
+  permissionCode: string;
+  isAllowed: boolean;
+}
+
 export interface User {
   id: string;
   fullName: string;
   email: string;
+  phone?: string | null;
   role: string;
+  isActive: boolean;
+  isSystemAdmin: boolean;
+  avatarUrl?: string | null;
+  roles: string[];
+  permissions?: UserPermission[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Role {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  isSystemRole: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Menu {
+  id: string;
+  code: string;
+  name: string;
+  path?: string | null;
+  icon?: string | null;
+  parentId?: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  isVisible: boolean;
+}
+
+export interface Permission {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface RolePermission {
+  id: string;
+  roleId: string;
+  menuId: string;
+  permissionId: string;
+  isAllowed: boolean;
 }
 
 export interface SiteSettings {

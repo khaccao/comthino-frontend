@@ -31,7 +31,17 @@ import SeoPageEditor from './pages/admin/SeoPageEditor';
 import FAQsManager from './pages/admin/FAQsManager';
 import ReviewsManager from './pages/admin/ReviewsManager';
 import POS from './pages/admin/POS';
-
+import Users from './pages/admin/Users';
+import Roles from './pages/admin/Roles';
+import RolePermissionsMatrix from './pages/admin/RolePermissionsMatrix';
+import AuditLogs from './pages/admin/AuditLogs';
+import PaymentRequests from './pages/admin/PaymentRequests';
+import PaymentVouchers from './pages/admin/PaymentVouchers';
+import PaymentDashboard from './pages/admin/PaymentDashboard';
+import Suppliers from './pages/admin/Suppliers';
+import CashAccounts from './pages/admin/CashAccounts';
+import PaymentApprovals from './pages/admin/PaymentApprovals';
+import CashReports from './pages/admin/CashReports';
 export default function App() {
   return (
     <BrowserRouter>
@@ -75,6 +85,17 @@ export default function App() {
           <Route path="faqs" element={<FAQsManager />} />
           <Route path="reviews" element={<ReviewsManager />} />
           <Route path="pos" element={<POS />} />
+          <Route path="users" element={<Users />} />
+          <Route path="roles" element={<Roles />} />
+          <Route path="permissions" element={<RolePermissionsMatrix />} />
+          <Route path="audit-logs" element={<AuditLogs />} />
+          <Route path="payments/requests" element={<PaymentRequests />} />
+          <Route path="payments/vouchers" element={<PaymentVouchers />} />
+          <Route path="payments/dashboard" element={<PaymentDashboard />} />
+          <Route path="payments/approvals" element={<PaymentApprovals />} />
+          <Route path="cash/accounts" element={<CashAccounts />} />
+          <Route path="reports/cash" element={<CashReports />} />
+          <Route path="suppliers" element={<Suppliers />} />
         </Route>
 
         {/* CATCH ALL FALLBACK */}
