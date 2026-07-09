@@ -47,63 +47,63 @@ export default function AdminLayout() {
 
   const navGroups: NavGroup[] = [
     {
-      label: 'TONG QUAN',
+      label: 'TỔNG QUAN',
       items: [
-        { label: 'Thong ke chung', path: '/admin/dashboard', icon: LayoutDashboard, menuCode: 'DASHBOARD' },
-        { label: 'May POS', path: '/admin/pos', icon: Monitor, menuCode: 'ORDER_POS' },
+        { label: 'Thống kê chung', path: '/admin/dashboard', icon: LayoutDashboard, menuCode: 'DASHBOARD' },
+        { label: 'Máy POS', path: '/admin/pos', icon: Monitor, menuCode: 'ORDER_POS' },
       ],
     },
     {
       label: 'WEBSITE',
       items: [
-        { label: 'Thong tin website', path: '/admin/site-settings', icon: Settings, menuCode: 'SYSTEM_CONFIG' },
+        { label: 'Thông tin website', path: '/admin/site-settings', icon: Settings, menuCode: 'SYSTEM_CONFIG' },
         { label: 'Banners', path: '/admin/banners', icon: Sparkles, menuCode: 'SYSTEM_CONFIG' },
-        { label: 'Cac phan trang chu', path: '/admin/home-sections', icon: FolderOpen, menuCode: 'SYSTEM_CONFIG' },
-        { label: 'Menu dieu huong', path: '/admin/navigation-items', icon: Navigation, menuCode: 'SYSTEM_CONFIG' },
-        { label: 'Khuyen mai', path: '/admin/promotions', icon: Sparkles, menuCode: 'SYSTEM_CONFIG' },
-        { label: 'Thu vien anh', path: '/admin/gallery', icon: ImageIcon, menuCode: 'SYSTEM_CONFIG' },
-        { label: 'Danh gia khach', path: '/admin/testimonials', icon: MessageSquare, menuCode: 'SYSTEM_CONFIG' },
-        { label: 'Lien he', path: '/admin/contact-messages', icon: MessageSquare, menuCode: 'SYSTEM_CONFIG' },
-        { label: 'Quan ly Media', path: '/admin/media', icon: FileImage, menuCode: 'SYSTEM_CONFIG' },
+        { label: 'Các phần trang chủ', path: '/admin/home-sections', icon: FolderOpen, menuCode: 'SYSTEM_CONFIG' },
+        { label: 'Menu điều hướng', path: '/admin/navigation-items', icon: Navigation, menuCode: 'SYSTEM_CONFIG' },
+        { label: 'Khuyến mãi', path: '/admin/promotions', icon: Sparkles, menuCode: 'SYSTEM_CONFIG' },
+        { label: 'Thư viện ảnh', path: '/admin/gallery', icon: ImageIcon, menuCode: 'SYSTEM_CONFIG' },
+        { label: 'Đánh giá khách', path: '/admin/testimonials', icon: MessageSquare, menuCode: 'SYSTEM_CONFIG' },
+        { label: 'Liên hệ', path: '/admin/contact-messages', icon: MessageSquare, menuCode: 'SYSTEM_CONFIG' },
+        { label: 'Quản lý Media', path: '/admin/media', icon: FileImage, menuCode: 'SYSTEM_CONFIG' },
       ],
     },
     {
-      label: 'THUC DON',
+      label: 'THỰC ĐƠN',
       items: [
-        { label: 'Danh muc mon', path: '/admin/menu-categories', icon: Layers, menuCode: 'DISH_CATEGORY' },
-        { label: 'Mon an', path: '/admin/menu-items', icon: Utensils, menuCode: 'MENU_MANAGEMENT' },
+        { label: 'Danh mục món', path: '/admin/menu-categories', icon: Layers, menuCode: 'DISH_CATEGORY' },
+        { label: 'Món ăn', path: '/admin/menu-items', icon: Utensils, menuCode: 'MENU_MANAGEMENT' },
       ],
     },
     {
-      label: 'NOI DUNG',
+      label: 'NỘI DUNG',
       items: [
-        { label: 'Danh muc tin', path: '/admin/blog/categories', icon: Newspaper },
-        { label: 'Bai viet', path: '/admin/blog/posts', icon: Newspaper },
-        { label: 'Viet bai moi', path: '/admin/blog/posts/new', icon: PenLine },
+        { label: 'Danh mục tin', path: '/admin/blog/categories', icon: Newspaper },
+        { label: 'Bài viết', path: '/admin/blog/posts', icon: Newspaper },
+        { label: 'Viết bài mới', path: '/admin/blog/posts/new', icon: PenLine },
         { label: 'SEO Landing Pages', path: '/admin/seo-pages', icon: Globe },
         { label: 'FAQs', path: '/admin/faqs', icon: Sparkles },
         { label: 'Reviews', path: '/admin/reviews', icon: MessageSquare },
       ],
     },
     {
-      label: 'CHI TIEN',
+      label: 'CHI TIỀN',
       items: [
-        { label: 'Dashboard chi tien', path: '/admin/payments/dashboard', icon: BarChart2, menuCode: 'CASH_BOOK' },
-        { label: 'De nghi chi', path: '/admin/payments/requests', icon: FileText, menuCode: 'PAYMENT_REQUEST' },
-        { label: 'Duyet de nghi chi', path: '/admin/payments/approvals', icon: CheckSquare, menuCode: 'PAYMENT_REQUEST_APPROVAL' },
-        { label: 'Phieu chi', path: '/admin/payments/vouchers', icon: CreditCard, menuCode: 'PAYMENT_VOUCHER' },
-        { label: 'Nha cung cap', path: '/admin/suppliers', icon: Truck, menuCode: 'SUPPLIER_CATEGORY' },
-        { label: 'Tai khoan tien', path: '/admin/cash/accounts', icon: BookOpen, menuCode: 'BANK_ACCOUNT' },
-        { label: 'Bao cao thu chi', path: '/admin/reports/cash', icon: BarChart2, menuCode: 'CASH_REPORT' },
+        { label: 'Dashboard chi tiền', path: '/admin/payments/dashboard', icon: BarChart2, menuCode: 'CASH_BOOK' },
+        { label: 'Đề nghị chi', path: '/admin/payments/requests', icon: FileText, menuCode: 'PAYMENT_REQUEST' },
+        { label: 'Duyệt đề nghị chi', path: '/admin/payments/approvals', icon: CheckSquare, menuCode: 'PAYMENT_REQUEST_APPROVAL' },
+        { label: 'Phiếu chi', path: '/admin/payments/vouchers', icon: CreditCard, menuCode: 'PAYMENT_VOUCHER' },
+        { label: 'Nhà cung cấp', path: '/admin/suppliers', icon: Truck, menuCode: 'SUPPLIER_CATEGORY' },
+        { label: 'Tài khoản tiền', path: '/admin/cash/accounts', icon: BookOpen, menuCode: 'BANK_ACCOUNT' },
+        { label: 'Báo cáo thu chi', path: '/admin/reports/cash', icon: BarChart2, menuCode: 'CASH_REPORT' },
       ],
     },
     {
-      label: 'HE THONG',
+      label: 'HỆ THỐNG',
       items: [
-        { label: 'Nguoi dung', path: '/admin/users', icon: Users, menuCode: 'USER_MANAGEMENT' },
-        { label: 'Vai tro', path: '/admin/roles', icon: Shield, menuCode: 'ROLE_MANAGEMENT' },
-        { label: 'Phan quyen', path: '/admin/permissions', icon: Key, menuCode: 'PERMISSION_MANAGEMENT' },
-        { label: 'Nhat ky he thong', path: '/admin/audit-logs', icon: History, menuCode: 'AUDIT_LOG' },
+        { label: 'Người dùng', path: '/admin/users', icon: Users, menuCode: 'USER_MANAGEMENT' },
+        { label: 'Vai trò', path: '/admin/roles', icon: Shield, menuCode: 'ROLE_MANAGEMENT' },
+        { label: 'Phân quyền', path: '/admin/permissions', icon: Key, menuCode: 'PERMISSION_MANAGEMENT' },
+        { label: 'Nhật ký hệ thống', path: '/admin/audit-logs', icon: History, menuCode: 'AUDIT_LOG' },
       ],
     },
   ];
@@ -113,7 +113,7 @@ export default function AdminLayout() {
     items: group.items.filter(item => !item.menuCode || canView(item.menuCode)),
   })).filter(group => group.items.length > 0);
 
-  const isSingleGroup = (group: NavGroup) => group.label === 'TONG QUAN';
+  const isSingleGroup = (group: NavGroup) => group.label === 'TỔNG QUAN';
 
   return (
     <div className="admin-shell min-h-screen flex bg-stone-100 text-stone-800">
@@ -133,7 +133,7 @@ export default function AdminLayout() {
       >
         <div className="p-5 bg-stone-950 flex justify-between items-center border-b border-stone-800">
           <Link to="/" className="flex items-center space-x-2">
-            <span className="font-serif font-bold text-xl text-amber-500 tracking-wider">Thi No Admin</span>
+            <span className="font-serif font-bold text-xl text-amber-500 tracking-wider">Thị Nở Admin</span>
           </Link>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-stone-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -214,7 +214,7 @@ export default function AdminLayout() {
               <p className="text-stone-400 truncate text-[10px]">{user?.roles?.[0] || user?.role}</p>
             </div>
           </div>
-          <button onClick={handleLogout} title="Dang xuat" className="p-2 rounded hover:bg-stone-800 text-stone-400 hover:text-red-400 transition-colors">
+          <button onClick={handleLogout} title="Đăng xuất" className="p-2 rounded hover:bg-stone-800 text-stone-400 hover:text-red-400 transition-colors">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
@@ -226,15 +226,15 @@ export default function AdminLayout() {
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden -ml-2 p-2 rounded-md hover:bg-stone-100 text-stone-600" aria-label="Open admin menu">
               <MenuIcon className="w-6 h-6" />
             </button>
-            <span className="hidden lg:block text-stone-500 font-medium text-sm">He quan tri noi dung – Com Thi No</span>
+            <span className="hidden lg:block text-stone-500 font-medium text-sm">Hệ quản trị nội dung - Cơm Thị Nở</span>
           </div>
           <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-4">
             <a href="/" target="_blank" rel="noreferrer" className="hidden sm:inline-flex items-center text-xs font-semibold bg-stone-100 hover:bg-stone-200 text-stone-700 py-1.5 px-3 rounded transition-colors">
-              Xem trang chu
+              Xem trang chủ
             </a>
             <div className="h-4 w-px bg-stone-200 hidden sm:block"></div>
             <div className="flex min-w-0 items-center gap-2">
-              <span className="text-stone-600 text-sm font-medium">Xin chao, {user?.fullName}</span>
+              <span className="text-stone-600 text-sm font-medium">Xin chào, {user?.fullName}</span>
               <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full uppercase border border-amber-200">
                 {user?.roles?.[0] || user?.role}
               </span>

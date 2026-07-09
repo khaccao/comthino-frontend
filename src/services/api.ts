@@ -229,30 +229,33 @@ export const permissionApi = {
   getMenus: () => api.get('/admin/menus').then(r => r.data),
 };
 
+const unwrapItems = (response: any) => response.data?.items ?? response.data?.data ?? response.data;
+const unwrapData = (response: any) => response.data?.data ?? response.data;
+
 // --- PAYMENT API ---
 export const paymentApi = {
   // Master data
-  getExpenseCategories: () => api.get('/admin/payments/categories').then(r => r.data),
-  getPaymentMethods: () => api.get('/admin/payments/methods').then(r => r.data),
-  getCashAccounts: () => api.get('/admin/payments/cash-accounts').then(r => r.data),
+  getExpenseCategories: () => api.get('/admin/payments/categories').then(unwrapItems),
+  getPaymentMethods: () => api.get('/admin/payments/methods').then(unwrapItems),
+  getCashAccounts: () => api.get('/admin/payments/cash-accounts').then(unwrapItems),
   // Suppliers
-  getSuppliers: () => api.get('/admin/suppliers').then(r => r.data),
-  createSupplier: (data: any) => api.post('/admin/suppliers', data).then(r => r.data),
-  updateSupplier: (id: string, data: any) => api.put(`/admin/suppliers/${id}`, data).then(r => r.data),
-  deleteSupplier: (id: string) => api.delete(`/admin/suppliers/${id}`).then(r => r.data),
+  getSuppliers: () => api.get('/admin/suppliers').then(unwrapItems),
+  createSupplier: (data: any) => api.post('/admin/suppliers', data).then(unwrapData),
+  updateSupplier: (id: string, data: any) => api.put(`/admin/suppliers/${id}`, data).then(unwrapData),
+  deleteSupplier: (id: string) => api.delete(`/admin/suppliers/${id}`).then(unwrapData),
   // Payment Requests
-  getRequests: () => api.get('/admin/payments/requests').then(r => r.data),
-  createRequest: (data: any) => api.post('/admin/payments/requests', data).then(r => r.data),
+  getRequests: () => api.get('/admin/payments/requests').then(unwrapItems),
+  createRequest: (data: any) => api.post('/admin/payments/requests', data).then(unwrapData),
   approveRequest: (id: string, status: string) =>
-    api.patch(`/admin/payments/requests/${id}/approve`, { status }).then(r => r.data),
-  deleteRequest: (id: string) => api.delete(`/admin/payments/requests/${id}`).then(r => r.data),
+    api.patch(`/admin/payments/requests/${id}/approve`, { status }).then(unwrapData),
+  deleteRequest: (id: string) => api.delete(`/admin/payments/requests/${id}`).then(unwrapData),
   // Payment Vouchers
-  getVouchers: () => api.get('/admin/payments/vouchers').then(r => r.data),
-  createVoucher: (data: any) => api.post('/admin/payments/vouchers', data).then(r => r.data),
-  postVoucher: (id: string) => api.post(`/admin/payments/vouchers/${id}/post`).then(r => r.data),
-  deleteVoucher: (id: string) => api.delete(`/admin/payments/vouchers/${id}`).then(r => r.data),
+  getVouchers: () => api.get('/admin/payments/vouchers').then(unwrapItems),
+  createVoucher: (data: any) => api.post('/admin/payments/vouchers', data).then(unwrapData),
+  postVoucher: (id: string) => api.post(`/admin/payments/vouchers/${id}/post`).then(unwrapData),
+  deleteVoucher: (id: string) => api.delete(`/admin/payments/vouchers/${id}`).then(unwrapData),
   // Dashboard
-  getDashboard: () => api.get('/admin/payments/dashboard').then(r => r.data),
+  getDashboard: () => api.get('/admin/payments/dashboard').then(unwrapData),
 };
 
 // --- AUDIT LOG API ---
@@ -260,4 +263,3 @@ export const auditApi = {
   getLogs: (params?: { page?: number; limit?: number }) =>
     api.get('/admin/audit-logs', { params }).then(r => r.data),
 };
-

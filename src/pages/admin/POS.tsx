@@ -814,7 +814,7 @@ export default function POS() {
 
       <div className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-warm sm:p-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-700">Com Thi No Restaurant</p>
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-700">Cơm Thị Nở Restaurant</p>
           <h1 className="mt-1 text-xl font-extrabold text-stone-950 sm:text-2xl">Máy POS nhà hàng</h1>
           <p className="mt-1 text-sm text-stone-500">Chọn bàn, ghi món, xác nhận bếp, in bill và theo dõi doanh thu trong ngày.</p>
         </div>
