@@ -4,6 +4,12 @@ import PermissionGuard from '../../components/PermissionGuard';
 import { useAuthStore } from '../../utils/authStore';
 import { Plus, CheckCircle, Trash2, X, FileText } from 'lucide-react';
 
+const todayInputValue = () => {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+};
+
 export default function PaymentVouchers() {
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
@@ -14,6 +20,7 @@ export default function PaymentVouchers() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
+    paymentDate: todayInputValue(),
     requestId: '',
     receiverName: '',
     reason: '',
@@ -59,6 +66,7 @@ export default function PaymentVouchers() {
     if (req) {
       setFormData({
         ...formData,
+        paymentDate: formData.paymentDate,
         requestId: reqId,
         receiverName: req.supplier?.name || req.requester?.fullName || '',
         reason: req.reason,
@@ -75,6 +83,7 @@ export default function PaymentVouchers() {
     try {
       const payload = {
         ...formData,
+        paymentDate: formData.paymentDate,
         amount: Number(formData.amount.replace(/[^0-9]/g, '')),
         requestId: formData.requestId || undefined,
       };
@@ -82,7 +91,7 @@ export default function PaymentVouchers() {
       setIsModalOpen(false);
       loadData();
       setFormData({
-        requestId: '', receiverName: '', reason: '', amount: '',
+        paymentDate: todayInputValue(), requestId: '', receiverName: '', reason: '', amount: '',
         paymentMethodId: '', cashAccountId: '', expenseCategoryId: '', attachmentUrl: '', notes: ''
       });
     } catch (err: any) {
@@ -114,6 +123,13 @@ export default function PaymentVouchers() {
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val);
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('vi-VN');
   };
 
   if (loading) return <div className="p-8 text-center">Đang tải...</div>;
@@ -152,7 +168,7 @@ export default function PaymentVouchers() {
               <tr key={vou.id} className="hover:bg-stone-50">
                 <td className="p-4">
                   <div className="font-medium text-amber-700">{vou.code}</div>
-                  <div className="text-xs text-stone-500">{new Date(vou.voucherDate).toLocaleDateString('vi-VN')}</div>
+                  <div className="text-xs text-stone-500">{formatDate(vou.paymentDate || vou.voucherDate)}</div>
                 </td>
                 <td className="p-4 font-medium">{vou.receiverName}</td>
                 <td className="p-4 text-stone-500 max-w-[200px] truncate" title={vou.reason}>{vou.reason}</td>
@@ -213,8 +229,8 @@ export default function PaymentVouchers() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm mb-1">Người nhận tiền *</label>
-                    <input type="text" required value={formData.receiverName} onChange={e => setFormData({...formData, receiverName: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+                    <label className="block text-sm mb-1">Ngày chi *</label>
+                    <input type="date" required value={formData.paymentDate} onChange={e => setFormData({...formData, paymentDate: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
                   </div>
                   <div>
                     <label className="block text-sm mb-1">Số tiền (VNĐ) *</label>
@@ -222,6 +238,16 @@ export default function PaymentVouchers() {
                       const val = e.target.value.replace(/[^0-9]/g, '');
                       setFormData({...formData, amount: val ? Number(val).toLocaleString('en-US') : ''});
                     }} className="w-full px-3 py-2 border rounded-lg text-right font-bold text-red-600" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm mb-1">Người nhận tiền *</label>
+                    <input type="text" required value={formData.receiverName} onChange={e => setFormData({...formData, receiverName: e.target.value})} className="w-full px-3 py-2 border rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1">Link đính kèm</label>
+                    <input type="url" value={formData.attachmentUrl} onChange={e => setFormData({...formData, attachmentUrl: e.target.value})} className="w-full px-3 py-2 border rounded-lg" placeholder="URL hóa đơn/chứng từ" />
                   </div>
                 </div>
                 <div>
