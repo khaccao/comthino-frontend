@@ -50,11 +50,11 @@ export default function RolePermissionsMatrix() {
   }, []);
 
   useEffect(() => {
-    if (selectedRoleId) {
+    if (selectedRoleId && menus.length > 0 && permissionsList.length > 0) {
       loadRolePermissions(selectedRoleId);
       setSearchParams({ roleId: selectedRoleId });
     }
-  }, [selectedRoleId]);
+  }, [selectedRoleId, menus.length, permissionsList.length]);
 
   const loadRolePermissions = async (roleId: string) => {
     try {
@@ -108,7 +108,7 @@ export default function RolePermissionsMatrix() {
       Object.keys(matrix).forEach(mCode => {
         Object.keys(matrix[mCode]).forEach(pCode => {
           if (matrix[mCode][pCode]) {
-            permissions.push({ menuCode: mCode, permissionCode: pCode });
+            permissions.push({ menuCode: mCode, permissionCode: pCode, isAllowed: true });
           }
         });
       });

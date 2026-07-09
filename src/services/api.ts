@@ -200,37 +200,37 @@ export const adminApi = {
 };
 
 // --- RBAC API ---
+const unwrapItems = (response: any) => response.data?.items ?? response.data?.data ?? response.data;
+const unwrapData = (response: any) => response.data?.data ?? response.data;
+
 export const userApi = {
-  getAll: () => api.get('/admin/users').then(r => r.data),
-  getById: (id: string) => api.get(`/admin/users/${id}`).then(r => r.data),
-  create: (data: any) => api.post('/admin/users', data).then(r => r.data),
-  update: (id: string, data: any) => api.put(`/admin/users/${id}`, data).then(r => r.data),
-  lock: (id: string) => api.patch(`/admin/users/${id}/lock`).then(r => r.data),
-  unlock: (id: string) => api.patch(`/admin/users/${id}/unlock`).then(r => r.data),
-  delete: (id: string) => api.delete(`/admin/users/${id}`).then(r => r.data),
-  getRoles: (userId: string) => api.get(`/admin/users/${userId}/roles`).then(r => r.data),
+  getAll: () => api.get('/admin/users').then(unwrapItems),
+  getById: (id: string) => api.get(`/admin/users/${id}`).then(unwrapData),
+  create: (data: any) => api.post('/admin/users', data).then(unwrapData),
+  update: (id: string, data: any) => api.put(`/admin/users/${id}`, data).then(unwrapData),
+  lock: (id: string) => api.patch(`/admin/users/${id}/lock`).then(unwrapData),
+  unlock: (id: string) => api.patch(`/admin/users/${id}/unlock`).then(unwrapData),
+  delete: (id: string) => api.delete(`/admin/users/${id}`).then(unwrapData),
+  getRoles: (userId: string) => api.get(`/admin/users/${userId}/roles`).then(unwrapItems),
   updateRoles: (userId: string, roles: string[]) =>
-    api.put(`/admin/users/${userId}/roles`, { roles }).then(r => r.data),
+    api.put(`/admin/users/${userId}/roles`, { roles }).then(unwrapData),
 };
 
 export const roleApi = {
-  getAll: () => api.get('/admin/roles').then(r => r.data),
-  getById: (id: string) => api.get(`/admin/roles/${id}`).then(r => r.data),
-  create: (data: any) => api.post('/admin/roles', data).then(r => r.data),
-  update: (id: string, data: any) => api.put(`/admin/roles/${id}`, data).then(r => r.data),
-  delete: (id: string) => api.delete(`/admin/roles/${id}`).then(r => r.data),
-  getPermissions: (roleId: string) => api.get(`/admin/roles/${roleId}/permissions`).then(r => r.data),
+  getAll: () => api.get('/admin/roles').then(unwrapItems),
+  getById: (id: string) => api.get(`/admin/roles/${id}`).then(unwrapData),
+  create: (data: any) => api.post('/admin/roles', data).then(unwrapData),
+  update: (id: string, data: any) => api.put(`/admin/roles/${id}`, data).then(unwrapData),
+  delete: (id: string) => api.delete(`/admin/roles/${id}`).then(unwrapData),
+  getPermissions: (roleId: string) => api.get(`/admin/roles/${roleId}/permissions`).then(unwrapItems),
   updatePermissions: (roleId: string, permissions: any[]) =>
-    api.put(`/admin/roles/${roleId}/permissions`, { permissions }).then(r => r.data),
+    api.put(`/admin/roles/${roleId}/permissions`, { permissions }).then(unwrapData),
 };
 
 export const permissionApi = {
-  getAll: () => api.get('/admin/permissions').then(r => r.data),
-  getMenus: () => api.get('/admin/menus').then(r => r.data),
+  getAll: () => api.get('/admin/permissions').then(unwrapItems),
+  getMenus: () => api.get('/admin/menus').then(unwrapItems),
 };
-
-const unwrapItems = (response: any) => response.data?.items ?? response.data?.data ?? response.data;
-const unwrapData = (response: any) => response.data?.data ?? response.data;
 
 // --- PAYMENT API ---
 export const paymentApi = {
