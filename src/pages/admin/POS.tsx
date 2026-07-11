@@ -593,11 +593,53 @@ export default function POS() {
         img{display:block;width:38mm;height:38mm;margin:3mm auto;object-fit:contain}
         .qr-text{text-align:center;font-weight:700;font-size:12px}
         @page{size:72mm auto;margin:0}
-      </style></head><body>${html}</body></html>
+      </style></head><body>${html}
+      <script>
+        (function(){
+          var printed = false;
+          function doPrint(){
+            if (printed) return;
+            printed = true;
+            window.focus();
+            window.print();
+          }
+          function waitForImages(){
+            var images = Array.prototype.slice.call(document.images || []);
+            if (!images.length) {
+              doPrint();
+              return;
+            }
+            var pending = images.length;
+            var done = function(){
+              pending -= 1;
+              if (pending <= 0) setTimeout(doPrint, 120);
+            };
+            images.forEach(function(img){
+              var settled = false;
+              var settle = function(){
+                if (settled) return;
+                settled = true;
+                done();
+              };
+              if (img.complete && img.naturalWidth > 0) {
+                settle();
+                return;
+              }
+              img.addEventListener('load', settle, { once: true });
+              img.addEventListener('error', settle, { once: true });
+              if (img.decode) {
+                img.decode().then(settle).catch(function(){});
+              }
+            });
+            setTimeout(doPrint, 5000);
+          }
+          if (document.readyState === 'complete') waitForImages();
+          else window.addEventListener('load', waitForImages, { once: true });
+          window.onafterprint = function(){ setTimeout(function(){ window.close(); }, 250); };
+        })();
+      </script></body></html>
     `);
     printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
   };
 
   const saveTable = async () => {
