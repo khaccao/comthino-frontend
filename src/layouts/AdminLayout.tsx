@@ -6,7 +6,7 @@ import {
   Sparkles, Layers, Utensils, FolderOpen, FileImage, Navigation, LogOut,
   ChevronRight, User as UserIcon, X, Newspaper, PenLine, Globe, Shield,
   Users, Key, History, FileText, CheckSquare, CreditCard, DollarSign,
-  BookOpen, BarChart2, Truck, ChevronDown, Monitor
+  BookOpen, BarChart2, Truck, ChevronDown, Monitor, CalendarClock
 } from 'lucide-react';
 
 interface NavGroup {
@@ -95,6 +95,12 @@ export default function AdminLayout() {
         { label: 'Nhà cung cấp', path: '/admin/suppliers', icon: Truck, menuCode: 'SUPPLIER_CATEGORY' },
         { label: 'Tài khoản tiền', path: '/admin/cash/accounts', icon: BookOpen, menuCode: 'BANK_ACCOUNT' },
         { label: 'Báo cáo thu chi', path: '/admin/reports/cash', icon: BarChart2, menuCode: 'CASH_REPORT' },
+      ],
+    },
+    {
+      label: 'NHÂN SỰ',
+      items: [
+        { label: 'Chấm công & lương', path: '/admin/payroll', icon: CalendarClock, menuCode: 'PAYROLL' },
       ],
     },
     {

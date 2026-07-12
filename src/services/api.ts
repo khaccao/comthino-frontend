@@ -258,6 +258,27 @@ export const paymentApi = {
   getDashboard: () => api.get('/admin/payments/dashboard').then(unwrapData),
 };
 
+// --- PAYROLL API ---
+export const payrollApi = {
+  getBootstrap: () => api.get('/admin/payroll/bootstrap').then(unwrapData),
+  getShifts: () => api.get('/admin/payroll/shifts').then(unwrapItems),
+  createShift: (data: any) => api.post('/admin/payroll/shifts', data).then(unwrapData),
+  updateShift: (id: string, data: any) => api.put(`/admin/payroll/shifts/${id}`, data).then(unwrapData),
+  deleteShift: (id: string) => api.delete(`/admin/payroll/shifts/${id}`).then(unwrapData),
+  getEmployees: () => api.get('/admin/payroll/employees').then(unwrapItems),
+  createEmployee: (data: any) => api.post('/admin/payroll/employees', data).then(unwrapData),
+  updateEmployee: (id: string, data: any) => api.put(`/admin/payroll/employees/${id}`, data).then(unwrapData),
+  deleteEmployee: (id: string) => api.delete(`/admin/payroll/employees/${id}`).then(unwrapData),
+  getAttendances: (params?: { from?: string; to?: string }) =>
+    api.get('/admin/payroll/attendance', { params }).then(unwrapItems),
+  createAttendance: (data: any) => api.post('/admin/payroll/attendance', data).then(unwrapData),
+  updateAttendance: (id: string, data: any) => api.put(`/admin/payroll/attendance/${id}`, data).then(unwrapData),
+  deleteAttendance: (id: string) => api.delete(`/admin/payroll/attendance/${id}`).then(unwrapData),
+  getRuns: () => api.get('/admin/payroll/runs').then(unwrapItems),
+  generateRun: (data: any) => api.post('/admin/payroll/runs/generate', data).then(unwrapData),
+  deleteRun: (id: string) => api.delete(`/admin/payroll/runs/${id}`).then(unwrapData),
+};
+
 // --- AUDIT LOG API ---
 export const auditApi = {
   getLogs: (params?: { page?: number; limit?: number }) =>

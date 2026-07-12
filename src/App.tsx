@@ -42,6 +42,7 @@ import Suppliers from './pages/admin/Suppliers';
 import CashAccounts from './pages/admin/CashAccounts';
 import PaymentApprovals from './pages/admin/PaymentApprovals';
 import CashReports from './pages/admin/CashReports';
+import Payroll from './pages/admin/Payroll';
 export default function App() {
   return (
     <BrowserRouter>
@@ -96,6 +97,7 @@ export default function App() {
           <Route path="cash/accounts" element={<CashAccounts />} />
           <Route path="reports/cash" element={<CashReports />} />
           <Route path="suppliers" element={<Suppliers />} />
+          <Route path="payroll" element={<Payroll />} />
         </Route>
 
         {/* CATCH ALL FALLBACK */}
