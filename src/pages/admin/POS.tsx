@@ -7,11 +7,14 @@ import {
   Minus,
   Plus,
   Printer,
+  QrCode,
   RefreshCw,
   Save,
   Search,
+  Smartphone,
   Trash2,
   Utensils,
+  X,
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 
@@ -231,6 +234,7 @@ export default function POS() {
   const [templates, setTemplates] = useState<PrintTemplate[]>([]);
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [currentOrder, setCurrentOrder] = useState<PosOrder | null>(null);
+  const [mobilePaymentOrder, setMobilePaymentOrder] = useState<PosOrder | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [menuPage, setMenuPage] = useState(1);
@@ -540,10 +544,34 @@ export default function POS() {
     const res = await adminApi.payPosOrder(currentOrder.Id, 'QR_OR_CASH');
     if (res.success) {
       setToast(`Đã thanh toán ${currentOrder.OrderNo}.`);
+      setMobilePaymentOrder(null);
       setCurrentOrder(null);
       setSelectedTable(null);
       await loadBootstrap();
       if (activeTab === 'dashboard') await loadReports();
+    }
+  };
+
+  const openMobilePayment = async () => {
+    if (!currentOrder || !currentOrder.items?.length) return;
+    setIsSaving(true);
+    try {
+      let order = (await saveDirtyItemNotes()) || currentOrder;
+      const nextDiscount = Number(discount || 0);
+      if (Number(order.DiscountAmount || 0) !== nextDiscount || (order.Note || '') !== (currentOrder.Note || '')) {
+        const res = await adminApi.updatePosOrder(order.Id, {
+          note: currentOrder.Note || '',
+          discountAmount: nextDiscount,
+        });
+        if (res.success) {
+          order = res.data;
+          setCurrentOrder(order);
+          syncOpenOrder(order);
+        }
+      }
+      setMobilePaymentOrder(order);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -845,12 +873,129 @@ export default function POS() {
     );
   }
 
+  const mobileQrUrl = mobilePaymentOrder
+    ? buildVietQrUrl(paymentForm, mobilePaymentOrder.TotalAmount, mobilePaymentOrder.OrderNo) || mobilePaymentOrder.PaymentQrUrl || ''
+    : '';
+  const mobilePaymentAccount = paymentForm.accountNo
+    ? `${paymentForm.bankName} - ${paymentForm.accountNo}`
+    : `${paymentSetting?.BankName || ''} - ${paymentSetting?.AccountNo || ''}`;
+
   return (
     <div className="-m-4 min-h-[calc(100vh-4rem)] space-y-3 bg-stone-100 p-2 animate-fade-in sm:-m-6 sm:space-y-4 sm:p-4 lg:-m-8 lg:p-5">
       {toast && (
         <div className="fixed right-5 top-5 z-50 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900 shadow-lg">
           {toast}
           <button className="ml-4 text-amber-700" onClick={() => setToast('')}>Đóng</button>
+        </div>
+      )}
+
+      {mobilePaymentOrder && (
+        <div className="fixed inset-0 z-[70] bg-stone-950/70 p-0 backdrop-blur-sm sm:p-4">
+          <div className="mx-auto flex h-full max-w-2xl flex-col overflow-hidden bg-white shadow-2xl sm:h-[min(92vh,860px)] sm:rounded-3xl">
+            <div className="flex items-start justify-between gap-3 border-b border-stone-100 p-4 sm:p-5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Thanh toán mobile</p>
+                <h2 className="mt-1 text-2xl font-black text-stone-950">{mobilePaymentOrder.TableName}</h2>
+                <p className="text-sm font-bold text-amber-700">{mobilePaymentOrder.OrderNo}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobilePaymentOrder(null)}
+                className="rounded-full border border-stone-200 p-2 text-stone-500 hover:bg-stone-50"
+                aria-label="Đóng thanh toán mobile"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+              <div className="rounded-3xl bg-emerald-50 p-4 text-center">
+                <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Tổng cần thanh toán</p>
+                <p className="mt-1 text-4xl font-black text-emerald-800">{formatVnd(mobilePaymentOrder.TotalAmount)}</p>
+                <p className="mt-2 text-xs font-semibold text-emerald-700">{mobilePaymentAccount}</p>
+              </div>
+
+              <div className="mt-4 rounded-3xl border border-stone-200 bg-white p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-base font-black text-stone-950">Món đã gọi</h3>
+                  <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-600">
+                    {mobilePaymentOrder.items?.length || 0} món
+                  </span>
+                </div>
+                <div className="mt-3 divide-y divide-stone-100">
+                  {(mobilePaymentOrder.items || []).map((item) => {
+                    const note = itemNoteDrafts[item.Id] ?? item.Note ?? '';
+                    return (
+                      <div key={item.Id} className="grid grid-cols-[1fr_auto] gap-3 py-3">
+                        <div>
+                          <div className="font-extrabold text-stone-950">{item.Name}</div>
+                          <div className="mt-0.5 text-xs font-semibold text-stone-500">
+                            {item.Quantity} x {formatVnd(item.UnitPrice)}
+                          </div>
+                          {note && <div className="mt-1 text-xs font-semibold text-amber-700">Ghi chú: {note}</div>}
+                        </div>
+                        <div className="text-right font-black text-stone-950">
+                          {formatVnd(Number(item.UnitPrice) * Number(item.Quantity))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-4 rounded-3xl border border-stone-200 bg-white p-4 sm:grid-cols-[1fr_220px] sm:items-center">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-stone-500">Tạm tính</span>
+                    <b>{formatVnd(mobilePaymentOrder.SubTotal)}</b>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-stone-500">Phí dịch vụ</span>
+                    <b>{formatVnd(mobilePaymentOrder.ServiceCharge)}</b>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-stone-500">VAT</span>
+                    <b>{formatVnd(mobilePaymentOrder.VatAmount)}</b>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-stone-500">Giảm giá</span>
+                    <b>{formatVnd(mobilePaymentOrder.DiscountAmount)}</b>
+                  </div>
+                  <div className="flex justify-between gap-3 border-t border-stone-200 pt-3 text-lg">
+                    <span className="font-black text-stone-950">Tổng tiền</span>
+                    <b className="text-emerald-700">{formatVnd(mobilePaymentOrder.TotalAmount)}</b>
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-stone-50 p-3 text-center">
+                  {mobileQrUrl ? (
+                    <img src={mobileQrUrl} alt="QR thanh toán" className="mx-auto aspect-square w-full max-w-[260px] object-contain" />
+                  ) : (
+                    <div className="flex aspect-square w-full items-center justify-center rounded-xl border border-dashed border-stone-300 text-sm font-bold text-stone-400">
+                      Chưa có QR
+                    </div>
+                  )}
+                  <p className="mt-2 text-xs font-black uppercase text-stone-600">Quét QR để thanh toán</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-2 border-t border-stone-100 bg-white p-4 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setMobilePaymentOrder(null)}
+                className="rounded-xl border border-stone-200 px-4 py-3 text-sm font-extrabold text-stone-700"
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={payOrder}
+                className="rounded-xl bg-amber-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-amber-500"
+              >
+                Đã nhận tiền - hoàn tất
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1168,6 +1313,22 @@ export default function POS() {
                     <button onClick={() => printOrder('TEMPORARY')} className="rounded-xl border border-stone-200 px-2 py-3 text-xs font-extrabold text-stone-700">Tạm tính</button>
                     <button onClick={() => printOrder('PAYMENT')} className="rounded-xl border border-stone-200 bg-stone-900 px-2 py-3 text-xs font-extrabold text-white">Thanh toán</button>
                   </div>
+                  <button
+                    onClick={openMobilePayment}
+                    disabled={!currentOrder.items?.length || isSaving}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-emerald-900/10 transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-stone-300 sm:hidden"
+                  >
+                    <Smartphone className="h-4 w-4" />
+                    Thanh toán mobile / QR
+                  </button>
+                  <button
+                    onClick={openMobilePayment}
+                    disabled={!currentOrder.items?.length || isSaving}
+                    className="hidden w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-extrabold text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 sm:flex"
+                  >
+                    <QrCode className="h-4 w-4" />
+                    Hiển thị hóa đơn QR
+                  </button>
                   <button onClick={payOrder} className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-amber-500">
                     <CreditCard className="h-4 w-4" />
                     Hoàn tất thanh toán
