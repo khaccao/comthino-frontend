@@ -77,6 +77,8 @@ type PosOrder = {
   Status: 'OPEN' | 'ORDERED' | 'PAID' | 'CANCELLED';
   Note?: string;
   SubTotal: number;
+  DiscountType?: 'AMOUNT' | 'PERCENT';
+  DiscountValue?: number;
   DiscountAmount: number;
   ServiceCharge: number;
   VatAmount: number;
@@ -181,6 +183,12 @@ const buildVietQrUrl = (setting: typeof emptyPaymentForm, amount: number | strin
   return `https://img.vietqr.io/image/${bankBin}-${accountNo}-${template}.jpg?${params.toString()}`;
 };
 
+const calcDiscountAmount = (subTotal: number, type: 'AMOUNT' | 'PERCENT', value: number) => {
+  const safeValue = Math.max(0, Number(value || 0));
+  const raw = type === 'PERCENT' ? Number(subTotal || 0) * Math.min(100, safeValue) / 100 : safeValue;
+  return Math.min(Number(subTotal || 0), Math.max(0, raw));
+};
+
 const tabs = [
   { key: 'pos', label: 'Máy POS', icon: Utensils },
   { key: 'setup', label: 'Setup bàn/menu', icon: Edit2 },
@@ -239,6 +247,7 @@ export default function POS() {
   const [searchTerm, setSearchTerm] = useState('');
   const [menuPage, setMenuPage] = useState(1);
   const [discount, setDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState<'AMOUNT' | 'PERCENT'>('AMOUNT');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState('');
@@ -325,8 +334,10 @@ export default function POS() {
   }, [selectedCategory, searchTerm]);
 
   useEffect(() => {
-    setDiscount(Number(currentOrder?.DiscountAmount || 0));
-  }, [currentOrder?.Id, currentOrder?.DiscountAmount]);
+    const nextType = currentOrder?.DiscountType === 'PERCENT' ? 'PERCENT' : 'AMOUNT';
+    setDiscountType(nextType);
+    setDiscount(Number(currentOrder?.DiscountValue ?? currentOrder?.DiscountAmount ?? 0));
+  }, [currentOrder?.Id, currentOrder?.DiscountAmount, currentOrder?.DiscountType, currentOrder?.DiscountValue]);
 
   useEffect(() => {
     setItemNoteDrafts((current) => {
@@ -514,17 +525,20 @@ export default function POS() {
     }
   };
 
-  const saveOrderMeta = async () => {
-    if (!currentOrder) return;
+  const saveOrderMeta = async (silent = false) => {
+    if (!currentOrder) return null;
     const res = await adminApi.updatePosOrder(currentOrder.Id, {
       note: currentOrder.Note || '',
-      discountAmount: discount,
+      discountType,
+      discountValue: Math.max(0, Number(discount || 0)),
     });
     if (res.success) {
       setCurrentOrder(res.data);
       syncOpenOrder(res.data);
-      setToast('Đã cập nhật giảm giá.');
+      if (!silent) setToast('Đã cập nhật giảm giá.');
+      return res.data as PosOrder;
     }
+    return currentOrder;
   };
 
   const confirmKitchen = async () => {
@@ -541,14 +555,21 @@ export default function POS() {
 
   const payOrder = async () => {
     if (!currentOrder || !currentOrder.items?.length) return;
-    const res = await adminApi.payPosOrder(currentOrder.Id, 'QR_OR_CASH');
+    setIsSaving(true);
+    try {
+    const orderToPay = (await saveDirtyItemNotes()) || currentOrder;
+    const savedOrder = await saveOrderMeta(true);
+    const res = await adminApi.payPosOrder((savedOrder || orderToPay).Id, 'QR_OR_CASH');
     if (res.success) {
-      setToast(`Đã thanh toán ${currentOrder.OrderNo}.`);
+      setToast(`Đã thanh toán ${(savedOrder || orderToPay).OrderNo}.`);
       setMobilePaymentOrder(null);
       setCurrentOrder(null);
       setSelectedTable(null);
       await loadBootstrap();
       if (activeTab === 'dashboard') await loadReports();
+    }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -556,19 +577,8 @@ export default function POS() {
     if (!currentOrder || !currentOrder.items?.length) return;
     setIsSaving(true);
     try {
-      let order = (await saveDirtyItemNotes()) || currentOrder;
-      const nextDiscount = Number(discount || 0);
-      if (Number(order.DiscountAmount || 0) !== nextDiscount || (order.Note || '') !== (currentOrder.Note || '')) {
-        const res = await adminApi.updatePosOrder(order.Id, {
-          note: currentOrder.Note || '',
-          discountAmount: nextDiscount,
-        });
-        if (res.success) {
-          order = res.data;
-          setCurrentOrder(order);
-          syncOpenOrder(order);
-        }
-      }
+      await saveDirtyItemNotes();
+      const order = (await saveOrderMeta(true)) || currentOrder;
       setMobilePaymentOrder(order);
     } finally {
       setIsSaving(false);
@@ -879,6 +889,14 @@ export default function POS() {
   const mobilePaymentAccount = paymentForm.accountNo
     ? `${paymentForm.bankName} - ${paymentForm.accountNo}`
     : `${paymentSetting?.BankName || ''} - ${paymentSetting?.AccountNo || ''}`;
+  const currentSubTotal = Number(currentOrder?.SubTotal || 0);
+  const currentDiscountAmount = currentOrder
+    ? calcDiscountAmount(currentSubTotal, discountType, discount)
+    : 0;
+  const currentPreviewTotal = currentOrder ? Math.max(0, currentSubTotal - currentDiscountAmount) : 0;
+  const currentDiscountLabel = discountType === 'PERCENT'
+    ? `${Number(discount || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`
+    : formatVnd(discount);
 
   return (
     <div className="-m-4 min-h-[calc(100vh-4rem)] space-y-3 bg-stone-100 p-2 animate-fade-in sm:-m-6 sm:space-y-4 sm:p-4 lg:-m-8 lg:p-5">
@@ -1181,8 +1199,8 @@ export default function POS() {
             </div>
           </section>
 
-          <section className={`rounded-2xl border border-stone-200 bg-white shadow-warm xl:sticky xl:top-4 xl:self-start ${!selectedTable ? 'hidden' : ''}`}>
-            <div className="border-b border-stone-100 p-3 sm:p-4">
+          <section className={`overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-warm xl:sticky xl:top-4 xl:self-start ${!selectedTable ? 'hidden' : ''}`}>
+            <div className="sticky top-0 z-20 border-b border-stone-100 bg-white/95 p-3 backdrop-blur sm:p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Order hiện tại</p>
               <h2 className="text-xl font-extrabold text-stone-950 sm:text-2xl">{currentOrder ? currentOrder.TableName : 'Chưa chọn bàn'}</h2>
               <p className="text-sm font-semibold text-amber-700">{currentOrder?.OrderNo || 'Mở bàn để tạo order'}</p>
@@ -1195,14 +1213,20 @@ export default function POS() {
             ) : (
               <div className="flex min-h-0 flex-col sm:min-h-[520px]">
                 <div className="space-y-3 p-3 sm:p-4">
-                  <div className="grid grid-cols-2 gap-3 rounded-2xl bg-stone-50 p-3">
-                    <div>
-                      <p className="text-xs font-bold uppercase text-stone-400">Tạm tính</p>
-                      <p className="text-lg font-extrabold text-stone-900">{formatVnd(currentOrder.SubTotal)}</p>
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase text-stone-400">Tạm tính</p>
+                        <p className="text-lg font-extrabold text-stone-900">{formatVnd(currentSubTotal)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold uppercase text-stone-400">Tổng tiền</p>
+                        <p className="text-lg font-extrabold text-emerald-700">{formatVnd(currentPreviewTotal)}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase text-stone-400">Tổng tiền</p>
-                      <p className="text-lg font-extrabold text-emerald-700">{formatVnd(currentOrder.TotalAmount)}</p>
+                    <div className="mt-2 flex items-center justify-between rounded-xl bg-white/70 px-3 py-2 text-xs font-bold text-stone-600">
+                      <span>Giảm giá ({currentDiscountLabel})</span>
+                      <b className="text-rose-600">-{formatVnd(currentDiscountAmount)}</b>
                     </div>
                   </div>
                   <label className="block rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold uppercase text-amber-900">
@@ -1222,16 +1246,46 @@ export default function POS() {
                       Bill thanh toán sẽ in QR theo tài khoản đang chọn.
                     </span>
                   </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      value={discount}
-                      onChange={(e) => setDiscount(Number(e.target.value || 0))}
-                      className="h-10 min-w-0 flex-1 rounded-xl border border-stone-200 bg-stone-50 px-3 text-sm outline-none focus:border-amber-500"
-                      placeholder="Giảm giá"
-                    />
-                    <button onClick={saveOrderMeta} className="rounded-xl bg-stone-900 px-3 text-sm font-bold text-white">Lưu</button>
+                  <div className="rounded-2xl border border-stone-200 bg-white p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <span className="text-xs font-black uppercase tracking-wide text-stone-500">Giảm giá</span>
+                      <div className="grid grid-cols-2 rounded-xl bg-stone-100 p-1 text-xs font-extrabold">
+                        <button
+                          type="button"
+                          onClick={() => setDiscountType('AMOUNT')}
+                          className={`rounded-lg px-3 py-1.5 ${discountType === 'AMOUNT' ? 'bg-white text-stone-950 shadow-sm' : 'text-stone-500'}`}
+                        >
+                          VNĐ
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDiscountType('PERCENT')}
+                          className={`rounded-lg px-3 py-1.5 ${discountType === 'PERCENT' ? 'bg-white text-stone-950 shadow-sm' : 'text-stone-500'}`}
+                        >
+                          %
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="relative min-w-0 flex-1">
+                        <input
+                          type="number"
+                          min={0}
+                          max={discountType === 'PERCENT' ? 100 : undefined}
+                          value={discount}
+                          onChange={(e) => setDiscount(Number(e.target.value || 0))}
+                          className="h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3 pr-12 text-base font-extrabold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                          placeholder="0"
+                        />
+                        <span className="pointer-events-none absolute right-3 top-3 text-xs font-black text-stone-400">
+                          {discountType === 'PERCENT' ? '%' : 'đ'}
+                        </span>
+                      </div>
+                      <button onClick={() => saveOrderMeta()} className="rounded-xl bg-stone-900 px-4 text-sm font-bold text-white">Lưu</button>
+                    </div>
+                    <p className="mt-2 text-xs font-semibold text-stone-500">
+                      Hệ thống tự tính: {currentDiscountLabel} = {formatVnd(currentDiscountAmount)}.
+                    </p>
                   </div>
                   <textarea
                     value={currentOrder.Note || ''}
@@ -1242,10 +1296,10 @@ export default function POS() {
                   />
                 </div>
 
-                <div className="max-h-[420px] flex-1 space-y-3 overflow-y-auto border-y border-stone-100 p-3 sm:p-4 xl:max-h-[calc(100vh-33rem)]">
+                <div className="max-h-[38vh] flex-1 space-y-2 overflow-y-auto border-y border-stone-100 bg-stone-50/40 p-3 sm:max-h-[420px] sm:space-y-3 sm:p-4 xl:max-h-[calc(100vh-33rem)]">
                   {currentOrder.items?.length ? (
                     currentOrder.items.map((item) => (
-                      <div key={item.Id} className="rounded-2xl border border-stone-200 bg-white p-3">
+                      <div key={item.Id} className="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <h3 className="font-extrabold text-stone-950">{item.Name}</h3>
@@ -1297,7 +1351,7 @@ export default function POS() {
                   )}
                 </div>
 
-                <div className="space-y-3 p-3 sm:p-4">
+                <div className="sticky bottom-0 z-20 space-y-3 border-t border-stone-100 bg-white/95 p-3 shadow-[0_-10px_30px_rgba(28,25,23,.08)] backdrop-blur sm:static sm:border-t-0 sm:p-4 sm:shadow-none">
                   <button
                     onClick={confirmKitchen}
                     disabled={!hasKitchenChanges}
