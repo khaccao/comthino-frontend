@@ -224,48 +224,71 @@ export default function Payroll() {
   };
 
   const saveShift = async () => {
-    const payload = { ...shiftForm, hourlyRate: Number(shiftForm.hourlyRate || 0) };
-    if (editingShiftId) await payrollApi.updateShift(editingShiftId, payload);
-    else await payrollApi.createShift(payload);
-    setToast('Đã lưu ca làm.');
-    resetShift();
-    const data = await payrollApi.getShifts();
-    setShifts(data || []);
+    try {
+      const payload = { ...shiftForm, hourlyRate: Number(shiftForm.hourlyRate || 0) };
+      if (editingShiftId) await payrollApi.updateShift(editingShiftId, payload);
+      else await payrollApi.createShift(payload);
+      setToast('Đã lưu ca làm.');
+      resetShift();
+      const data = await payrollApi.getShifts();
+      setShifts(data || []);
+    } catch (error: any) {
+      setToast(error?.response?.data?.message || 'Lỗi khi lưu ca làm.');
+    }
   };
 
   const saveEmployee = async () => {
-    const payload = {
-      ...employeeForm,
-      defaultShiftId: employeeForm.defaultShiftId || null,
-      hourlyRate: employeeForm.hourlyRate === '' ? null : Number(employeeForm.hourlyRate),
-    };
-    if (editingEmployeeId) await payrollApi.updateEmployee(editingEmployeeId, payload);
-    else await payrollApi.createEmployee(payload);
-    setToast('Đã lưu nhân viên.');
-    resetEmployee();
-    const data = await payrollApi.getEmployees();
-    setEmployees(data || []);
+    try {
+      const payload = {
+        ...employeeForm,
+        defaultShiftId: employeeForm.defaultShiftId || null,
+        hourlyRate: employeeForm.hourlyRate === '' ? null : Number(employeeForm.hourlyRate),
+      };
+      if (editingEmployeeId) await payrollApi.updateEmployee(editingEmployeeId, payload);
+      else await payrollApi.createEmployee(payload);
+      setToast('Đã lưu nhân viên.');
+      resetEmployee();
+      const data = await payrollApi.getEmployees();
+      setEmployees(data || []);
+    } catch (error: any) {
+      setToast(error?.response?.data?.message || 'Lỗi khi lưu nhân viên.');
+    }
   };
 
   const saveAttendance = async () => {
-    const payload = {
-      ...attendanceForm,
-      shiftId: attendanceForm.shiftId || null,
-      hourlyRate: attendanceForm.hourlyRate === '' ? null : Number(attendanceForm.hourlyRate),
-      breakMinutes: Number(attendanceForm.breakMinutes || 0),
-    };
-    if (editingAttendanceId) await payrollApi.updateAttendance(editingAttendanceId, payload);
-    else await payrollApi.createAttendance(payload);
-    setToast('Đã lưu chấm công.');
-    resetAttendance();
-    await loadAttendances();
+    try {
+      if (!attendanceForm.employeeId) {
+        setToast('Vui lòng chọn nhân viên.');
+        return;
+      }
+      const payload = {
+        ...attendanceForm,
+        shiftId: attendanceForm.shiftId || null,
+        hourlyRate: attendanceForm.hourlyRate === '' ? null : Number(attendanceForm.hourlyRate),
+        breakMinutes: Number(attendanceForm.breakMinutes || 0),
+      };
+      if (editingAttendanceId) await payrollApi.updateAttendance(editingAttendanceId, payload);
+      else await payrollApi.createAttendance(payload);
+      setToast('Đã lưu chấm công.');
+      setAttendanceFrom(attendanceForm.workDate);
+      setAttendanceTo(attendanceForm.workDate);
+      resetAttendance();
+      const data = await payrollApi.getAttendances({ from: attendanceForm.workDate, to: attendanceForm.workDate });
+      setAttendances(data || []);
+    } catch (error: any) {
+      setToast(error?.response?.data?.message || 'Lỗi khi lưu chấm công.');
+    }
   };
 
   const generatePayroll = async () => {
-    const res = await payrollApi.generateRun(runForm);
-    setToast(`Đã tính bảng lương ${res.item?.code || ''}.`);
-    await loadRuns();
-    setActiveTab('payroll');
+    try {
+      const res = await payrollApi.generateRun(runForm);
+      setToast(`Đã tính bảng lương ${res.item?.code || ''}.`);
+      await loadRuns();
+      setActiveTab('payroll');
+    } catch (error: any) {
+      setToast(error?.response?.data?.message || 'Lỗi khi tạo bảng lương.');
+    }
   };
 
   if (isLoading) {
