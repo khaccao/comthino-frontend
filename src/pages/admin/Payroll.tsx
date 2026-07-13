@@ -85,11 +85,17 @@ const tabs = [
   { key: 'payroll', label: 'Bảng lương', icon: Check },
 ];
 
-const today = () => new Date().toISOString().slice(0, 10);
+const toLocalDateKey = (value: Date | string = new Date()) => {
+  const date = value instanceof Date ? value : new Date(value);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 10);
+};
+
+const today = () => toLocalDateKey();
 const monthStart = () => {
   const date = new Date();
   date.setDate(1);
-  return date.toISOString().slice(0, 10);
+  return toLocalDateKey(date);
 };
 
 const formatVnd = (value: number) => new Intl.NumberFormat('vi-VN', {
@@ -115,7 +121,7 @@ const timeInput = (value?: string) => {
 
 const dateInput = (value?: string) => {
   if (!value) return today();
-  return new Date(value).toISOString().slice(0, 10);
+  return toLocalDateKey(value);
 };
 
 export default function Payroll() {
@@ -173,10 +179,13 @@ export default function Payroll() {
   const loadBootstrap = async () => {
     setIsLoading(true);
     try {
-      const data = await payrollApi.getBootstrap();
+      const [data, attendanceData] = await Promise.all([
+        payrollApi.getBootstrap(),
+        payrollApi.getAttendances({ from: attendanceFrom, to: attendanceTo }),
+      ]);
       setShifts(data.shifts || []);
       setEmployees(data.employees || []);
-      setAttendances(data.attendances || []);
+      setAttendances(attendanceData || data.attendances || []);
       setRuns(data.runs || []);
     } finally {
       setIsLoading(false);
