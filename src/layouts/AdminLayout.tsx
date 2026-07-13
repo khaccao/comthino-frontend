@@ -1,18 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../utils/authStore';
+import { paymentApi } from '../services/api';
 import {
   LayoutDashboard, Settings, Menu as MenuIcon, Image as ImageIcon, MessageSquare,
   Sparkles, Layers, Utensils, FolderOpen, FileImage, Navigation, LogOut,
   ChevronRight, User as UserIcon, X, Newspaper, PenLine, Globe, Shield,
   Users, Key, History, FileText, CheckSquare, CreditCard, DollarSign,
-  BookOpen, BarChart2, Truck, ChevronDown, Monitor, CalendarClock
+  BookOpen, BarChart2, Truck, ChevronDown, Monitor, CalendarClock, AlertTriangle
 } from 'lucide-react';
 
 interface NavGroup {
   label: string;
   items: { label: string; path: string; icon: React.ElementType; menuCode?: string }[];
 }
+
+interface SupplierDueAlert {
+  id: string;
+  name: string;
+  currentDebt: number;
+  paymentDueDate?: string | null;
+  dueStatus?: 'DUE_SOON' | 'DUE_TODAY' | 'OVERDUE' | 'UPCOMING' | 'NONE';
+  dueStatusLabel?: string;
+}
+
+const formatMoney = (value: number) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value || 0));
 
 export default function AdminLayout() {
   const { isAuthenticated, user, logout, canView } = useAuthStore();
@@ -23,12 +36,33 @@ export default function AdminLayout() {
     return window.innerWidth >= 1024;
   });
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [supplierDueAlerts, setSupplierDueAlerts] = useState<SupplierDueAlert[]>([]);
 
   useEffect(() => {
     const handleResize = () => setIsSidebarOpen(window.innerWidth >= 1024);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !canView('SUPPLIER_CATEGORY')) {
+      setSupplierDueAlerts([]);
+      return;
+    }
+
+    let cancelled = false;
+    paymentApi.getSupplierDueAlerts()
+      .then((items: SupplierDueAlert[]) => {
+        if (!cancelled) setSupplierDueAlerts(items);
+      })
+      .catch(() => {
+        if (!cancelled) setSupplierDueAlerts([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, location.pathname, canView]);
 
   if (!isAuthenticated) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
@@ -248,6 +282,39 @@ export default function AdminLayout() {
           </div>
         </header>
         <main className="admin-content flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {supplierDueAlerts.length > 0 && (
+            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-amber-100 p-2 text-amber-700">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="font-bold text-amber-950">Cảnh báo hạn thanh toán nhà cung cấp</h2>
+                      <p className="text-sm text-amber-800">
+                        Có {supplierDueAlerts.length} NCC sắp đến hạn, đến hạn hoặc quá hạn thanh toán.
+                      </p>
+                    </div>
+                    <Link to="/admin/suppliers" className="inline-flex rounded-xl bg-amber-600 px-3 py-2 text-sm font-bold text-white hover:bg-amber-700">
+                      Xem công nợ
+                    </Link>
+                  </div>
+                  <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                    {supplierDueAlerts.slice(0, 4).map(item => (
+                      <div key={item.id} className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm">
+                        <span className="font-bold text-stone-950">{item.name}</span>
+                        <span className="mx-2 text-stone-400">•</span>
+                        <span className="font-bold text-red-600">{formatMoney(item.currentDebt)}</span>
+                        <span className="mx-2 text-stone-400">•</span>
+                        <span className="font-semibold text-amber-800">{item.dueStatusLabel}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <Outlet />
         </main>
       </div>

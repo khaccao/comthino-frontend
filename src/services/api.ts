@@ -240,6 +240,7 @@ export const paymentApi = {
   getCashAccounts: () => api.get('/admin/payments/cash-accounts').then(unwrapItems),
   // Suppliers
   getSuppliers: () => api.get('/admin/suppliers').then(unwrapItems),
+  getSupplierDueAlerts: () => api.get('/admin/suppliers/due-alerts').then(unwrapItems),
   createSupplier: (data: any) => api.post('/admin/suppliers', data).then(unwrapData),
   updateSupplier: (id: string, data: any) => api.put(`/admin/suppliers/${id}`, data).then(unwrapData),
   deleteSupplier: (id: string) => api.delete(`/admin/suppliers/${id}`).then(unwrapData),
