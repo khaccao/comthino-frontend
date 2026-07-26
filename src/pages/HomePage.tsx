@@ -233,6 +233,41 @@ export default function HomePage() {
         )}
       </section>
 
+      <section className="bg-white py-14 md:py-16 border-b border-quecan-beige/30">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 items-center">
+          <div className="space-y-4">
+            <span className="text-xs uppercase font-bold tracking-widest text-quecan-orange block">
+              Cơm ngon Hà Đông - Văn Quán
+            </span>
+            <h2 className="font-serif font-bold text-3xl md:text-4xl text-quecan-brown leading-tight">
+              Mâm cơm Bắc Bộ ấm bụng ngay tại Nguyễn Khuyến, KĐT Văn Quán
+            </h2>
+            <p className="text-sm md:text-base text-quecan-brown/75 leading-relaxed">
+              Nếu bạn đang tìm một quán cơm ngon ở Hà Đông hoặc cơm ngon khu Văn Quán cho bữa trưa, bữa tối gia đình,
+              Cơm Thị Nở phục vụ cơm quê Bắc Bộ, cơm niêu, cá kho, thịt rang cháy cạnh, canh cua cà pháo và các món
+              đổi vị theo ngày. Quán nhận đặt cơm văn phòng, đặt mâm cơm đoàn và hỗ trợ khách quanh Nguyễn Khuyến,
+              Trần Phú, Chiến Thắng, Phúc La, Mỗ Lao.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            {[
+              ['Cơm ngon Hà Đông', '/com-ngon-ha-dong'],
+              ['Cơm ngon Văn Quán', '/com-ngon-van-quan'],
+              ['Cơm văn phòng Hà Đông', '/com-van-phong-ha-dong'],
+              ['Đặt cơm đoàn Hà Đông', '/com-doan-ha-dong'],
+            ].map(([label, href]) => (
+              <a
+                key={href}
+                href={href}
+                className="border border-quecan-beige/50 bg-quecan-cream/40 px-4 py-3 rounded-lg font-semibold text-quecan-brown hover:border-quecan-orange hover:text-quecan-orange transition"
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* 3. SECTION GIỚI THIỆU (Story & Space) */}
       <section id="gioi-thieu" className="py-20 bg-quecan-cream relative">
         <div className="max-w-7xl mx-auto px-4 md:px-6 space-y-24">

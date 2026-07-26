@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Menu, X, Phone, Clock, MapPin, Facebook } from 'lucide-react';
 import { publicApi } from '../services/api';
 import { SiteSettings, NavigationItem } from '../types';
-import { absoluteAssetUrl, canonicalUrl, upsertLink, upsertMeta } from '../utils/seo';
+import { absoluteAssetUrl, canonicalUrl, upsertJsonLd, upsertLink, upsertMeta } from '../utils/seo';
 
 export default function PublicLayout() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
@@ -41,11 +41,14 @@ export default function PublicLayout() {
 
   // Update HTML dynamic title & meta tags from SiteSettings for SEO
   useEffect(() => {
-    if (settings) {
-      const title = settings.seoTitle || settings.siteName || 'Cơm Thị Nở';
-      const description = settings.seoDescription || settings.slogan || 'Cơm quê chuẩn vị Bắc Bộ tại Văn Quán, Hà Đông.';
+    if (settings && location.pathname === '/') {
+      const title = settings.seoTitle || 'Cơm ngon Hà Đông, Văn Quán | Cơm Thị Nở';
+      const description =
+        settings.seoDescription ||
+        'Cơm Thị Nở phục vụ cơm quê Bắc Bộ, cơm niêu, cơm văn phòng và đặt cơm đoàn tại A16TT18 Nguyễn Khuyến, KĐT Văn Quán, Hà Đông.';
       const pageUrl = canonicalUrl(location.pathname);
       const imageUrl = absoluteAssetUrl(settings.logoUrl);
+      const siteName = settings.siteName || 'Cơm Thị Nở';
 
       document.title = title;
 
@@ -53,20 +56,57 @@ export default function PublicLayout() {
 
       upsertMeta('meta[name="title"]', { content: title });
       upsertMeta('meta[name="description"]', { content: description });
-      upsertMeta('meta[name="keywords"]', { content: settings.seoKeywords || '' });
+      upsertMeta('meta[name="keywords"]', {
+        content:
+          settings.seoKeywords ||
+          'cơm ngon Hà Đông, cơm ngon Văn Quán, quán cơm ngon Văn Quán, cơm quê Hà Đông, cơm văn phòng Hà Đông, Cơm Thị Nở',
+      });
 
       upsertMeta('meta[property="og:url"]', { content: pageUrl });
       upsertMeta('meta[property="og:title"]', { content: title });
       upsertMeta('meta[property="og:description"]', { content: description });
       upsertMeta('meta[property="og:image"]', { content: imageUrl });
       upsertMeta('meta[property="og:image:secure_url"]', { content: imageUrl });
-      upsertMeta('meta[property="og:image:alt"]', { content: settings.siteName || 'Cơm Thị Nở' });
+      upsertMeta('meta[property="og:image:alt"]', { content: siteName });
 
       upsertMeta('meta[name="twitter:url"]', { content: pageUrl });
       upsertMeta('meta[name="twitter:title"]', { content: title });
       upsertMeta('meta[name="twitter:description"]', { content: description });
       upsertMeta('meta[name="twitter:image"]', { content: imageUrl });
-      upsertMeta('meta[name="twitter:image:alt"]', { content: settings.siteName || 'Cơm Thị Nở' });
+      upsertMeta('meta[name="twitter:image:alt"]', { content: siteName });
+
+      const rawPhone = settings.phone?.replace(/[^0-9+]/g, '') || '';
+      const schemaPhone = rawPhone.startsWith('+')
+        ? rawPhone
+        : rawPhone.startsWith('84')
+          ? `+${rawPhone}`
+          : rawPhone.startsWith('0')
+            ? `+84${rawPhone.slice(1)}`
+            : '+84971170103';
+
+      upsertJsonLd('home-restaurant-jsonld', {
+        '@context': 'https://schema.org',
+        '@type': 'Restaurant',
+        name: siteName,
+        url: canonicalUrl('/'),
+        logo: imageUrl,
+        image: imageUrl,
+        description,
+        telephone: schemaPhone,
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: settings.address || 'A16TT18 Nguyễn Khuyến, KĐT Văn Quán',
+          addressLocality: 'Hà Đông',
+          addressRegion: 'Hà Nội',
+          postalCode: '100000',
+          addressCountry: 'VN',
+        },
+        areaServed: ['Văn Quán', 'Hà Đông', 'Nguyễn Khuyến', 'Hà Nội'],
+        servesCuisine: ['Cơm Việt Nam', 'Cơm quê Bắc Bộ', 'Cơm niêu', 'Cơm văn phòng'],
+        priceRange: '$$',
+        openingHours: 'Mo-Su 09:00-22:00',
+        sameAs: [settings.facebookUrl].filter(Boolean),
+      });
     }
   }, [location.pathname, settings]);
 
@@ -252,7 +292,7 @@ export default function PublicLayout() {
 
       {/* Footer */}
       <footer className="bg-quecan-dark text-quecan-cream border-t-4 border-quecan-golden pt-16 pb-8">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-16">
           {/* Logo Column */}
           <div className="space-y-4">
             <h3 className="font-serif font-bold text-2xl tracking-wide text-quecan-golden">
@@ -331,6 +371,40 @@ export default function PublicLayout() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Local SEO Links Column */}
+          <div>
+            <h4 className="font-serif font-bold text-lg text-quecan-golden mb-6 relative after:absolute after:bottom-[-8px] after:left-0 after:w-12 after:h-0.5 after:bg-quecan-orange">
+              Khu vực phục vụ
+            </h4>
+            <ul className="space-y-3 text-sm text-quecan-cream/80">
+              <li>
+                <Link to="/com-ngon-ha-dong" className="hover:text-quecan-golden transition">
+                  Cơm ngon Hà Đông
+                </Link>
+              </li>
+              <li>
+                <Link to="/com-ngon-van-quan" className="hover:text-quecan-golden transition">
+                  Cơm ngon Văn Quán
+                </Link>
+              </li>
+              <li>
+                <Link to="/quan-com-ngon-van-quan" className="hover:text-quecan-golden transition">
+                  Quán cơm ngon Văn Quán
+                </Link>
+              </li>
+              <li>
+                <Link to="/com-van-phong-ha-dong" className="hover:text-quecan-golden transition">
+                  Cơm văn phòng Hà Đông
+                </Link>
+              </li>
+              <li>
+                <Link to="/dat-com-van-phong-ha-dong" className="hover:text-quecan-golden transition">
+                  Đặt cơm văn phòng Hà Đông
+                </Link>
+              </li>
+            </ul>
           </div>
 
           {/* Address & Contact Column */}

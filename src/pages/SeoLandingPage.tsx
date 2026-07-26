@@ -8,6 +8,12 @@ function stripHtml(input = '') {
   return input.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+const RESTAURANT_NAME = 'Cơm Thị Nở';
+const RESTAURANT_PHONE = '0971.170.103';
+const RESTAURANT_PHONE_TEL = '0971170103';
+const RESTAURANT_SCHEMA_PHONE = '+84971170103';
+const RESTAURANT_ADDRESS = 'A16TT18 Nguyễn Khuyến, KĐT Văn Quán, Hà Đông, Hà Nội';
+
 export default function SeoLandingPage() {
   const { slug = '' } = useParams();
   const [page, setPage] = useState<any | null>(null);
@@ -56,16 +62,19 @@ export default function SeoLandingPage() {
         upsertMeta('meta[property="og:title"]', { content: item.ogTitle || title });
         upsertMeta('meta[property="og:description"]', { content: item.ogDescription || description });
         upsertMeta('meta[property="og:image"]', { content: image });
+        upsertMeta('meta[property="og:image:secure_url"]', { content: image });
+        upsertMeta('meta[property="og:image:alt"]', { content: title });
         upsertMeta('meta[name="twitter:card"]', { content: 'summary_large_image' });
         upsertMeta('meta[name="twitter:title"]', { content: item.ogTitle || title });
         upsertMeta('meta[name="twitter:description"]', { content: item.ogDescription || description });
         upsertMeta('meta[name="twitter:image"]', { content: image });
+        upsertMeta('meta[name="twitter:image:alt"]', { content: title });
 
         // Local Business + Restaurant JSON-LD
         upsertJsonLd('seo-page-jsonld', {
           '@context': 'https://schema.org',
           '@type': item.schemaType === 'Restaurant' ? 'Restaurant' : item.schemaType || 'WebPage',
-          name: 'Cơm Thị Nở',
+          name: RESTAURANT_NAME,
           headline: title,
           description,
           image,
@@ -78,9 +87,10 @@ export default function SeoLandingPage() {
             postalCode: '100000',
             addressCountry: 'VN',
           },
-          telephone: '+84987654321',
+          telephone: RESTAURANT_SCHEMA_PHONE,
           openingHours: 'Mo-Su 09:00-22:00',
-          servesCuisine: 'Cơm Quê Bắc Bộ',
+          areaServed: ['Văn Quán', 'Hà Đông', 'Nguyễn Khuyến', 'Hà Nội'],
+          servesCuisine: ['Cơm Việt Nam', 'Cơm quê Bắc Bộ', 'Cơm niêu', 'Cơm văn phòng'],
           priceRange: '$$',
           geo: {
             '@type': 'GeoCoordinates',
@@ -185,7 +195,7 @@ export default function SeoLandingPage() {
             <div className="space-y-3 text-sm text-stone-700">
               <div className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
-                <span>A16TT18 Nguyễn Khuyến, KĐT Văn Quán, Hà Đông, Hà Nội</span>
+                <span>{RESTAURANT_ADDRESS}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-amber-600 shrink-0" />
@@ -193,13 +203,13 @@ export default function SeoLandingPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-amber-600 shrink-0" />
-                <a href="tel:0987654321" className="font-bold text-amber-700 hover:underline">
-                  0987.654.321
+                <a href={`tel:${RESTAURANT_PHONE_TEL}`} className="font-bold text-amber-700 hover:underline">
+                  {RESTAURANT_PHONE}
                 </a>
               </div>
             </div>
             <a
-              href="tel:0987654321"
+              href={`tel:${RESTAURANT_PHONE_TEL}`}
               className="block w-full text-center bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2.5 rounded-lg transition-colors"
             >
               Gọi ngay
@@ -216,6 +226,9 @@ export default function SeoLandingPage() {
           <div className="bg-white border border-stone-200 rounded-xl p-5">
             <h3 className="font-bold text-stone-800 mb-3">Các dịch vụ khác</h3>
             <ul className="space-y-2 text-sm">
+              <li><Link to="/com-ngon-ha-dong" className="text-amber-700 hover:underline">Cơm ngon Hà Đông</Link></li>
+              <li><Link to="/com-ngon-van-quan" className="text-amber-700 hover:underline">Cơm ngon Văn Quán</Link></li>
+              <li><Link to="/quan-com-ngon-van-quan" className="text-amber-700 hover:underline">Quán cơm ngon Văn Quán</Link></li>
               <li><Link to="/com-van-phong-ha-dong" className="text-amber-700 hover:underline">Cơm văn phòng Hà Đông</Link></li>
               <li><Link to="/com-que-ha-dong" className="text-amber-700 hover:underline">Cơm quê Hà Đông</Link></li>
               <li><Link to="/com-nieu-ha-dong" className="text-amber-700 hover:underline">Cơm niêu Hà Đông</Link></li>
