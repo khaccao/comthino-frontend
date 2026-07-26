@@ -404,6 +404,31 @@ export default function PublicLayout() {
                   Đặt cơm văn phòng Hà Đông
                 </Link>
               </li>
+              <li>
+                <Link to="/dat-com-van-phong-van-quan" className="hover:text-quecan-golden transition">
+                  Đặt cơm văn phòng Văn Quán
+                </Link>
+              </li>
+              <li>
+                <Link to="/an-gi-o-van-quan-ha-dong" className="hover:text-quecan-golden transition">
+                  Ăn gì ở Văn Quán Hà Đông
+                </Link>
+              </li>
+              <li>
+                <Link to="/quan-com-gia-dinh-ha-dong" className="hover:text-quecan-golden transition">
+                  Quán cơm gia đình Hà Đông
+                </Link>
+              </li>
+              <li>
+                <Link to="/thuc-don" className="hover:text-quecan-golden transition">
+                  Thực đơn Cơm Thị Nở
+                </Link>
+              </li>
+              <li>
+                <span className="text-quecan-cream/60">
+                  Phục vụ: Văn Quán, Phúc La, Mỗ Lao, Trần Phú, Nguyễn Khuyến, Chiến Thắng
+                </span>
+              </li>
             </ul>
           </div>
 
@@ -433,6 +458,26 @@ export default function PublicLayout() {
                   </a>
                 </li>
               )}
+              <li>
+                <Link to="/gioi-thieu" className="hover:text-quecan-golden transition">
+                  Giới thiệu Cơm Thị Nở
+                </Link>
+              </li>
+              <li>
+                <Link to="/chinh-sach-dat-com-giao-hang" className="hover:text-quecan-golden transition">
+                  Chính sách đặt cơm/giao hàng
+                </Link>
+              </li>
+              <li>
+                <Link to="/hoa-don-vat-dat-com-cong-ty" className="hover:text-quecan-golden transition">
+                  Hóa đơn VAT/đặt cơm công ty
+                </Link>
+              </li>
+              <li>
+                <Link to="/an-toan-thuc-pham-nguyen-lieu" className="hover:text-quecan-golden transition">
+                  An toàn thực phẩm/nguyên liệu
+                </Link>
+              </li>
             </ul>
           </div>
         </div>

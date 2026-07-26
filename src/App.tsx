@@ -8,6 +8,7 @@ import BlogListPage from './pages/BlogListPage';
 import BlogCategoryPage from './pages/BlogCategoryPage';
 import BlogDetailPage from './pages/BlogDetailPage';
 import SeoLandingPage from './pages/SeoLandingPage';
+import StaticSeoPage from './pages/StaticSeoPage';
 
 // Admin pages
 import Login from './pages/admin/Login';
@@ -53,6 +54,21 @@ export default function App() {
           <Route path="tin-tuc" element={<BlogListPage />} />
           <Route path="tin-tuc/danh-muc/:slug" element={<BlogCategoryPage />} />
           <Route path="tin-tuc/:slug" element={<BlogDetailPage />} />
+          <Route path="thuc-don" element={<StaticSeoPage />} />
+          <Route path="mon-an/:slug" element={<StaticSeoPage />} />
+          <Route path="com-ngon-ha-dong" element={<StaticSeoPage />} />
+          <Route path="com-ngon-van-quan" element={<StaticSeoPage />} />
+          <Route path="quan-com-ngon-van-quan" element={<StaticSeoPage />} />
+          <Route path="com-van-phong-ha-dong" element={<StaticSeoPage />} />
+          <Route path="dat-com-van-phong-van-quan" element={<StaticSeoPage />} />
+          <Route path="an-gi-o-van-quan-ha-dong" element={<StaticSeoPage />} />
+          <Route path="quan-com-gia-dinh-ha-dong" element={<StaticSeoPage />} />
+          <Route path="gioi-thieu" element={<StaticSeoPage />} />
+          <Route path="lien-he" element={<StaticSeoPage />} />
+          <Route path="chinh-sach-dat-com-giao-hang" element={<StaticSeoPage />} />
+          <Route path="chinh-sach-doi-huy-don" element={<StaticSeoPage />} />
+          <Route path="hoa-don-vat-dat-com-cong-ty" element={<StaticSeoPage />} />
+          <Route path="an-toan-thuc-pham-nguyen-lieu" element={<StaticSeoPage />} />
           {/* SEO Landing Pages - catch-all for slugs */}
           <Route path=":slug" element={<SeoLandingPage />} />
         </Route>
