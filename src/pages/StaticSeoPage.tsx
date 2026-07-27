@@ -44,6 +44,7 @@ export default function StaticSeoPage() {
         '@type': 'Restaurant',
         name: restaurantInfo.name,
         telephone: '+84971170103',
+        hasMap: restaurantInfo.mapUrl,
         address: {
           '@type': 'PostalAddress',
           streetAddress: 'A16TT18 Nguyễn Khuyến, KĐT Văn Quán',

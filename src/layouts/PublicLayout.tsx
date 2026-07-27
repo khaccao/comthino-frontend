@@ -105,7 +105,8 @@ export default function PublicLayout() {
         servesCuisine: ['Cơm Việt Nam', 'Cơm quê Bắc Bộ', 'Cơm niêu', 'Cơm văn phòng'],
         priceRange: '$$',
         openingHours: 'Mo-Su 09:00-22:00',
-        sameAs: [settings.facebookUrl].filter(Boolean),
+        hasMap: 'https://share.google/hEGDxD42rKNQeEOfh',
+        sameAs: [settings.facebookUrl || 'https://www.facebook.com/profile.php?id=61591114202466'].filter(Boolean),
       });
     }
   }, [location.pathname, settings]);

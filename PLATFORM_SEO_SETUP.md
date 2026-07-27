@@ -5,10 +5,10 @@
 Set these values before `npm run build` on production. Leave a value empty if you do not use that platform yet.
 
 ```env
-VITE_GOOGLE_SITE_VERIFICATION=
+VITE_GOOGLE_SITE_VERIFICATION=tEm4Sih2yUKc-5s3lLyFxeD-IEn9jPC0iakBwuqzRZI
 VITE_GOOGLE_TAG_MANAGER_ID=
 VITE_GOOGLE_ANALYTICS_ID=
-VITE_FACEBOOK_APP_ID=
+VITE_FACEBOOK_APP_ID=1515195859877827
 VITE_META_PIXEL_ID=
 ```
 
@@ -17,6 +17,7 @@ Notes:
 - Prefer `VITE_GOOGLE_TAG_MANAGER_ID` if you have GTM. If GTM is set, the build skips direct GA injection to avoid duplicate tracking.
 - `VITE_FACEBOOK_APP_ID` is safe for frontend Open Graph/Insights.
 - Never put Facebook App Secret in frontend env. Use App Secret only on backend/server for Graph API jobs.
+- The build has safe defaults for Google verification and Facebook App ID. Env values can override them.
 
 ## 2. Google Search Console
 
@@ -53,6 +54,7 @@ Profile content to fill:
 
 - Business description: `Cơm Thị Nở phục vụ cơm quê Bắc Bộ, cơm niêu, mâm cơm gia đình, cơm văn phòng và đặt cơm đoàn tại A16TT18 Nguyễn Khuyến, KĐT Văn Quán, Hà Đông.`
 - Service areas: Văn Quán, Hà Đông, Nguyễn Khuyến, Phúc La, Mỗ Lao, Trần Phú, Chiến Thắng.
+- Google Maps public link: `https://share.google/hEGDxD42rKNQeEOfh`
 - Menu sections: Cơm niêu, Món kho, Món canh, Món rau, Mâm cơm gia đình, Cơm văn phòng.
 - Add menu photos and item photos. Use real photos, not stock images.
 
@@ -70,6 +72,7 @@ Page setup:
 - Page name: `Cơm Thị Nở`
 - Category: Restaurant / Vietnamese Restaurant / Food & Drink, choose closest available.
 - Website: `https://comthino.com/?utm_source=facebook&utm_medium=social&utm_campaign=page_about`
+- Page URL: `https://www.facebook.com/profile.php?id=61591114202466`
 - Phone: `0971.170.103`
 - Address: same as Google Business Profile.
 - About/bio: `Cơm quê Bắc Bộ, cơm niêu, cơm văn phòng và mâm cơm gia đình tại Văn Quán, Hà Đông.`

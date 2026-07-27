@@ -7,6 +7,8 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
 const indexPath = path.join(distDir, 'index.html');
+const DEFAULT_GOOGLE_SITE_VERIFICATION = 'tEm4Sih2yUKc-5s3lLyFxeD-IEn9jPC0iakBwuqzRZI';
+const DEFAULT_FACEBOOK_APP_ID = '1515195859877827';
 
 function escapeAttr(value = '') {
   return String(value)
@@ -19,6 +21,10 @@ function escapeAttr(value = '') {
 
 function clean(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function verificationToken(value) {
+  return clean(value).replace(/^google-site-verification=/i, '').trim();
 }
 
 function addHead(html, block) {
@@ -89,10 +95,10 @@ function main() {
     throw new Error('dist/index.html not found. Run vite build first.');
   }
 
-  const googleVerification = clean(process.env.VITE_GOOGLE_SITE_VERIFICATION);
+  const googleVerification = verificationToken(process.env.VITE_GOOGLE_SITE_VERIFICATION || DEFAULT_GOOGLE_SITE_VERIFICATION);
   const googleTagManagerId = clean(process.env.VITE_GOOGLE_TAG_MANAGER_ID);
   const googleAnalyticsId = clean(process.env.VITE_GOOGLE_ANALYTICS_ID);
-  const facebookAppId = clean(process.env.VITE_FACEBOOK_APP_ID);
+  const facebookAppId = clean(process.env.VITE_FACEBOOK_APP_ID || DEFAULT_FACEBOOK_APP_ID);
   const metaPixelId = clean(process.env.VITE_META_PIXEL_ID);
 
   let html = fs.readFileSync(indexPath, 'utf8');

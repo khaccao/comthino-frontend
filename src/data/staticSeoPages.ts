@@ -22,7 +22,7 @@ export const restaurantInfo = {
   tel: '0971170103',
   address: 'A16TT18 Nguyễn Khuyến, KĐT Văn Quán, Hà Đông, Hà Nội',
   hours: '09:00 - 22:00 hằng ngày',
-  mapUrl: 'https://www.google.com/maps/search/?api=1&query=A16TT18%20Nguyen%20Khuyen%20KDT%20Van%20Quan%20Ha%20Dong%20Ha%20Noi',
+  mapUrl: 'https://share.google/hEGDxD42rKNQeEOfh',
 };
 
 const commonRelated = [

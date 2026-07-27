@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { paymentApi } from '../../services/api';
 import PermissionGuard from '../../components/PermissionGuard';
-import { AlertTriangle, CalendarDays, Clock3, Edit, Plus, Trash2, Truck, X } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CheckCircle, Clock3, CreditCard, Edit, Plus, Trash2, Truck, X } from 'lucide-react';
 
 type DueStatus = 'NONE' | 'UPCOMING' | 'DUE_SOON' | 'DUE_TODAY' | 'OVERDUE';
+type DebtStatus = 'PAID' | 'PENDING_PAYMENT' | 'UNPAID';
 
 interface Supplier {
   id: string;
@@ -12,6 +13,9 @@ interface Supplier {
   taxCode?: string | null;
   address?: string | null;
   currentDebt: number;
+  pendingPaymentAmount?: number;
+  debtStatus?: DebtStatus;
+  debtStatusLabel?: string;
   paymentTerm?: string | null;
   paymentTermDays?: number | null;
   paymentDueDate?: string | null;
@@ -43,6 +47,16 @@ const todayKey = () => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 };
 
+const emptyPaymentForm = {
+  paymentDate: todayKey(),
+  amount: '',
+  paymentMethodId: '',
+  cashAccountId: '',
+  expenseCategoryId: '',
+  attachmentUrl: '',
+  notes: '',
+};
+
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(val || 0));
 
@@ -61,14 +75,27 @@ const dueBadgeClass = (status?: DueStatus) => {
   return 'bg-stone-100 text-stone-600 border-stone-200';
 };
 
+const debtBadgeClass = (status?: DebtStatus) => {
+  if (status === 'PAID') return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+  if (status === 'PENDING_PAYMENT') return 'bg-blue-100 text-blue-800 border-blue-200';
+  return 'bg-red-100 text-red-700 border-red-200';
+};
+
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [payingSupplier, setPayingSupplier] = useState<Supplier | null>(null);
   const [formData, setFormData] = useState(emptyForm);
+  const [paymentForm, setPaymentForm] = useState(emptyPaymentForm);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [methods, setMethods] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
 
   const MENU_CODE = 'SUPPLIER_CATEGORY';
+  const PAYMENT_VOUCHER_MENU = 'PAYMENT_VOUCHER';
 
   const dueAlerts = useMemo(
     () => suppliers.filter(item => item.shouldAlert).sort((a, b) => Number(a.daysUntilDue ?? 9999) - Number(b.daysUntilDue ?? 9999)),
@@ -78,8 +105,16 @@ export default function Suppliers() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await paymentApi.getSuppliers();
+      const [data, catData, metData, accData] = await Promise.all([
+        paymentApi.getSuppliers(),
+        paymentApi.getExpenseCategories(),
+        paymentApi.getPaymentMethods(),
+        paymentApi.getCashAccounts(),
+      ]);
       setSuppliers(data);
+      setCategories(catData.filter((item: any) => item.isActive));
+      setMethods(metData.filter((item: any) => item.isActive));
+      setAccounts(accData.filter((item: any) => item.isActive));
     } catch (err: any) {
       alert('Lỗi tải danh sách nhà cung cấp');
     } finally {
@@ -160,6 +195,57 @@ export default function Suppliers() {
     }
   };
 
+  const handleOpenPaymentModal = (supplier: Supplier) => {
+    setPayingSupplier(supplier);
+    setPaymentForm({
+      ...emptyPaymentForm,
+      paymentDate: todayKey(),
+      amount: String(Number(supplier.currentDebt || 0).toLocaleString('en-US')),
+      paymentMethodId: methods[0]?.id || '',
+      cashAccountId: accounts[0]?.id || '',
+      expenseCategoryId: categories[0]?.id || '',
+      notes: `Thanh toán công nợ nhà cung cấp ${supplier.name}`,
+    });
+    setIsPaymentModalOpen(true);
+  };
+
+  const handlePaymentSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!payingSupplier) return;
+
+    try {
+      const amount = Number(paymentForm.amount.replace(/[^0-9]/g, '')) || 0;
+      if (amount <= 0) {
+        alert('Số tiền thanh toán phải lớn hơn 0.');
+        return;
+      }
+      if (amount > Number(payingSupplier.currentDebt || 0)) {
+        alert('Số tiền thanh toán không được vượt quá công nợ hiện tại.');
+        return;
+      }
+
+      await paymentApi.createVoucher({
+        paymentDate: paymentForm.paymentDate,
+        supplierId: payingSupplier.id,
+        receiverName: payingSupplier.name,
+        reason: `Thanh toán công nợ nhà cung cấp ${payingSupplier.name}`,
+        amount,
+        paymentMethodId: paymentForm.paymentMethodId,
+        cashAccountId: paymentForm.cashAccountId,
+        expenseCategoryId: paymentForm.expenseCategoryId,
+        attachmentUrl: paymentForm.attachmentUrl || null,
+        notes: paymentForm.notes || null,
+      });
+
+      setIsPaymentModalOpen(false);
+      setPayingSupplier(null);
+      await loadData();
+      alert('Đã tạo phiếu chi công nợ ở trạng thái Chưa ghi sổ. Cấp có quyền ghi sổ cần duyệt/ghi sổ để khoản chi vào báo cáo tháng.');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Lỗi tạo phiếu chi công nợ');
+    }
+  };
+
   if (loading) return <div className="p-8 text-center">Đang tải...</div>;
 
   return (
@@ -212,6 +298,7 @@ export default function Suppliers() {
                 <th className="p-4">Liên hệ / MST</th>
                 <th className="p-4">Hạn thanh toán</th>
                 <th className="p-4 text-right">Công nợ hiện tại</th>
+                <th className="p-4 text-right">Chờ ghi sổ</th>
                 <th className="p-4 text-center">Trạng thái</th>
                 <th className="p-4 text-right">Thao tác</th>
               </tr>
@@ -252,15 +339,24 @@ export default function Suppliers() {
                   <td className="p-4 text-right font-black text-red-600">
                     {formatCurrency(sup.currentDebt)}
                   </td>
+                  <td className="p-4 text-right font-bold text-blue-700">
+                    {Number(sup.pendingPaymentAmount || 0) > 0 ? formatCurrency(Number(sup.pendingPaymentAmount || 0)) : '-'}
+                  </td>
                   <td className="p-4 text-center">
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                      sup.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {sup.isActive ? 'Hoạt động' : 'Tạm dừng'}
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-bold ${debtBadgeClass(sup.debtStatus)}`}>
+                      {sup.debtStatus === 'PAID' && <CheckCircle className="mr-1 h-3 w-3" />}
+                      {sup.debtStatusLabel || (sup.currentDebt > 0 ? 'Còn nợ' : 'Đã trả')}
                     </span>
                   </td>
                   <td className="p-4">
                     <div className="flex justify-end gap-2">
+                      {sup.currentDebt > 0 && (
+                        <PermissionGuard menuCode={PAYMENT_VOUCHER_MENU} permissionCode="CREATE">
+                          <button onClick={() => handleOpenPaymentModal(sup)} className="rounded-lg p-2 text-emerald-700 hover:bg-emerald-50" title="Tạo phiếu chi công nợ">
+                            <CreditCard className="h-4 w-4" />
+                          </button>
+                        </PermissionGuard>
+                      )}
                       <PermissionGuard menuCode={MENU_CODE} permissionCode="EDIT">
                         <button onClick={() => handleOpenModal(sup)} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50">
                           <Edit className="h-4 w-4" />
@@ -380,6 +476,121 @@ export default function Suppliers() {
             <div className="flex justify-end gap-3 border-t bg-stone-50 px-6 py-4">
               <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-xl bg-stone-200 px-4 py-2 font-bold text-stone-700">Hủy</button>
               <button type="submit" form="supForm" className="rounded-xl bg-amber-600 px-5 py-2 font-bold text-white hover:bg-amber-700">Lưu</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPaymentModalOpen && payingSupplier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
+              <div>
+                <h2 className="text-xl font-black text-stone-950">Thanh toán công nợ</h2>
+                <p className="mt-1 text-sm text-stone-500">{payingSupplier.name} - còn nợ {formatCurrency(payingSupplier.currentDebt)}</p>
+              </div>
+              <button onClick={() => setIsPaymentModalOpen(false)} className="rounded-lg p-2 hover:bg-stone-100">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-6">
+              <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+                Phiếu chi sẽ được tạo ở trạng thái <strong>Chưa ghi sổ</strong>. Khoản chi chỉ vào báo cáo tháng và công nợ chỉ chuyển <strong>Đã trả</strong> sau khi người có quyền ghi sổ duyệt/ghi sổ phiếu chi.
+              </div>
+
+              <form id="supplierPaymentForm" onSubmit={handlePaymentSubmit} className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-bold text-stone-700">Ngày chi *</label>
+                    <input
+                      type="date"
+                      required
+                      value={paymentForm.paymentDate}
+                      onChange={e => setPaymentForm({ ...paymentForm, paymentDate: e.target.value })}
+                      className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-bold text-stone-700">Số tiền thanh toán *</label>
+                    <input
+                      type="text"
+                      required
+                      value={paymentForm.amount}
+                      onChange={e => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setPaymentForm({ ...paymentForm, amount: val ? Number(val).toLocaleString('en-US') : '' });
+                      }}
+                      className="w-full rounded-xl border border-stone-300 px-3 py-3 text-right font-black text-red-600 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-bold text-stone-700">Phương thức *</label>
+                    <select
+                      required
+                      value={paymentForm.paymentMethodId}
+                      onChange={e => setPaymentForm({ ...paymentForm, paymentMethodId: e.target.value })}
+                      className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                    >
+                      <option value="">-- Chọn --</option>
+                      {methods.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-bold text-stone-700">Tài khoản chi *</label>
+                    <select
+                      required
+                      value={paymentForm.cashAccountId}
+                      onChange={e => setPaymentForm({ ...paymentForm, cashAccountId: e.target.value })}
+                      className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                    >
+                      <option value="">-- Chọn --</option>
+                      {accounts.map(item => <option key={item.id} value={item.id}>{item.name} ({formatCurrency(item.currentBalance || item.balance)})</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-bold text-stone-700">Khoản chi *</label>
+                    <select
+                      required
+                      value={paymentForm.expenseCategoryId}
+                      onChange={e => setPaymentForm({ ...paymentForm, expenseCategoryId: e.target.value })}
+                      className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                    >
+                      <option value="">-- Chọn --</option>
+                      {categories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-bold text-stone-700">Link chứng từ</label>
+                  <input
+                    type="url"
+                    value={paymentForm.attachmentUrl}
+                    onChange={e => setPaymentForm({ ...paymentForm, attachmentUrl: e.target.value })}
+                    className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                    placeholder="URL hóa đơn/chứng từ"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-bold text-stone-700">Ghi chú</label>
+                  <input
+                    type="text"
+                    value={paymentForm.notes}
+                    onChange={e => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                    className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                  />
+                </div>
+              </form>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t bg-stone-50 px-6 py-4">
+              <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="rounded-xl bg-stone-200 px-4 py-2 font-bold text-stone-700">Hủy</button>
+              <button type="submit" form="supplierPaymentForm" className="rounded-xl bg-emerald-600 px-5 py-2 font-bold text-white hover:bg-emerald-700">Tạo phiếu chi chờ ghi sổ</button>
             </div>
           </div>
         </div>
