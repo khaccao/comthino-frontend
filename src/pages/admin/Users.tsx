@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { userApi, roleApi } from '../../services/api';
 import { useAuthStore } from '../../utils/authStore';
 import PermissionGuard from '../../components/PermissionGuard';
@@ -19,6 +20,7 @@ export default function Users() {
     otpauthUrl: string;
     user: { id: string; email: string; fullName: string };
   } | null>(null);
+  const [twoFactorQrUrl, setTwoFactorQrUrl] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -50,6 +52,34 @@ export default function Users() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!twoFactorSetup?.otpauthUrl) {
+      setTwoFactorQrUrl('');
+      return;
+    }
+
+    QRCode.toDataURL(twoFactorSetup.otpauthUrl, {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      width: 260,
+      color: {
+        dark: '#111827',
+        light: '#ffffff',
+      },
+    })
+      .then((url) => {
+        if (!cancelled) setTwoFactorQrUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setTwoFactorQrUrl('');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [twoFactorSetup?.otpauthUrl]);
 
   const handleOpenModal = (user?: User) => {
     if (user) {
@@ -294,7 +324,24 @@ export default function Users() {
             </div>
             <div className="space-y-4 p-6">
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-                Mở Google Authenticator, chọn thêm tài khoản mới, rồi nhập setup key dưới đây cho tài khoản <b>{twoFactorSetup.user.email}</b>.
+                Mở Google Authenticator, chọn thêm tài khoản mới, rồi quét mã QR hoặc nhập setup key dưới đây cho tài khoản <b>{twoFactorSetup.user.email}</b>.
+              </div>
+              <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 text-center">
+                <p className="mb-3 text-sm font-black text-stone-800">Quét mã bằng Google Authenticator</p>
+                {twoFactorQrUrl ? (
+                  <img
+                    src={twoFactorQrUrl}
+                    alt="QR thiết lập 2FA Google Authenticator"
+                    className="mx-auto h-64 w-64 rounded-2xl border border-stone-200 bg-white p-3 shadow-sm"
+                  />
+                ) : (
+                  <div className="mx-auto flex h-64 w-64 items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-white text-sm font-bold text-stone-400">
+                    Đang tạo mã QR...
+                  </div>
+                )}
+                <p className="mt-3 text-xs font-semibold text-stone-500">
+                  QR được tạo ngay trên trình duyệt, không gửi secret ra dịch vụ bên ngoài.
+                </p>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-bold text-stone-700">Setup key</label>
