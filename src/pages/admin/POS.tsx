@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
+import RevenueOtpPrompt from '../../components/admin/RevenueOtpPrompt';
 
 type PosTable = {
   Id: string;
@@ -255,6 +256,10 @@ export default function POS() {
   const [history, setHistory] = useState<PosOrder[]>([]);
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState<PosOrder | null>(null);
   const [dashboard, setDashboard] = useState<PosDashboardData | null>(null);
+  const [revenueOtp, setRevenueOtp] = useState('');
+  const [revenueOtpVerified, setRevenueOtpVerified] = useState(false);
+  const [revenueOtpError, setRevenueOtpError] = useState<string | null>(null);
+  const [revenueOtpLoading, setRevenueOtpLoading] = useState(false);
   const [tableForm, setTableForm] = useState(emptyTableForm);
   const [tableEditingId, setTableEditingId] = useState<string | null>(null);
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
@@ -308,16 +313,30 @@ export default function POS() {
     }
   };
 
-  const loadReports = async () => {
+  const loadReports = async (otpCode = revenueOtp) => {
     try {
       const [historyRes, dashboardRes] = await Promise.all([
-        adminApi.getPosHistory(historyDate),
-        adminApi.getPosDashboard(historyDate),
+        adminApi.getPosHistory(historyDate, otpCode),
+        adminApi.getPosDashboard(historyDate, otpCode),
       ]);
       if (historyRes.success) setHistory(historyRes.data || []);
       if (dashboardRes.success) setDashboard(dashboardRes.data);
+      setRevenueOtp(otpCode);
+      setRevenueOtpVerified(true);
+      setRevenueOtpError(null);
     } catch (error) {
       console.error(error);
+      const err = error as any;
+      const code = err.response?.data?.code;
+      const message = err.response?.data?.message || 'Không tải được dữ liệu doanh thu POS.';
+      if (code === 'INVALID_REVENUE_OTP' || code === 'TWO_FACTOR_REQUIRED') {
+        setRevenueOtpVerified(false);
+        setRevenueOtpError(message);
+        setDashboard(null);
+        setHistory([]);
+      } else {
+        setToast(message);
+      }
     }
   };
 
@@ -326,8 +345,8 @@ export default function POS() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'dashboard') loadReports();
-  }, [activeTab, historyDate]);
+    if (activeTab === 'dashboard' && revenueOtpVerified) loadReports();
+  }, [activeTab, historyDate, revenueOtpVerified]);
 
   useEffect(() => {
     setMenuPage(1);
@@ -375,7 +394,7 @@ export default function POS() {
     });
   }, [menuItems, searchTerm, selectedCategory]);
 
-  const pageSize = 10;
+  const pageSize = 12;
   const pagedItems = filteredItems.slice((menuPage - 1) * pageSize, menuPage * pageSize);
   const maxMenuPage = Math.max(1, Math.ceil(filteredItems.length / pageSize));
 
@@ -875,6 +894,12 @@ export default function POS() {
 </html>`;
   }, [editingTemplate?.Code, editingTemplate?.Content, paymentForm]);
 
+  const submitRevenueOtp = async (otp: string) => {
+    setRevenueOtpLoading(true);
+    await loadReports(otp);
+    setRevenueOtpLoading(false);
+  };
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -908,9 +933,9 @@ export default function POS() {
       )}
 
       {mobilePaymentOrder && (
-        <div className="fixed inset-0 z-[70] bg-stone-950/70 p-0 backdrop-blur-sm sm:p-4">
-          <div className="mx-auto flex h-full max-w-2xl flex-col overflow-hidden bg-white shadow-2xl sm:h-[min(92vh,860px)] sm:rounded-3xl">
-            <div className="flex items-start justify-between gap-3 border-b border-stone-100 p-4 sm:p-5">
+        <div className="fixed inset-0 z-[70] flex items-end bg-stone-950/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="mx-auto flex h-[100dvh] w-full max-w-2xl flex-col overflow-hidden bg-white shadow-2xl sm:h-[min(92vh,860px)] sm:rounded-3xl">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 bg-white p-3 sm:p-5">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Thanh toán mobile</p>
                 <h2 className="mt-1 text-2xl font-black text-stone-950">{mobilePaymentOrder.TableName}</h2>
@@ -926,25 +951,25 @@ export default function POS() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-              <div className="rounded-3xl bg-emerald-50 p-4 text-center">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-5">
+              <div className="rounded-2xl bg-emerald-50 p-3 text-center sm:rounded-3xl sm:p-4">
                 <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Tổng cần thanh toán</p>
-                <p className="mt-1 text-4xl font-black text-emerald-800">{formatVnd(mobilePaymentOrder.TotalAmount)}</p>
+                <p className="mt-1 text-3xl font-black text-emerald-800 sm:text-4xl">{formatVnd(mobilePaymentOrder.TotalAmount)}</p>
                 <p className="mt-2 text-xs font-semibold text-emerald-700">{mobilePaymentAccount}</p>
               </div>
 
-              <div className="mt-4 rounded-3xl border border-stone-200 bg-white p-4">
+              <div className="mt-3 rounded-2xl border border-stone-200 bg-white p-3 sm:mt-4 sm:rounded-3xl sm:p-4">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-base font-black text-stone-950">Món đã gọi</h3>
                   <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-bold text-stone-600">
                     {mobilePaymentOrder.items?.length || 0} món
                   </span>
                 </div>
-                <div className="mt-3 divide-y divide-stone-100">
+                <div className="mt-2 max-h-[28dvh] divide-y divide-stone-100 overflow-y-auto pr-1 sm:mt-3 sm:max-h-none sm:overflow-visible sm:pr-0">
                   {(mobilePaymentOrder.items || []).map((item) => {
                     const note = itemNoteDrafts[item.Id] ?? item.Note ?? '';
                     return (
-                      <div key={item.Id} className="grid grid-cols-[1fr_auto] gap-3 py-3">
+                      <div key={item.Id} className="grid grid-cols-[1fr_auto] gap-3 py-2.5 sm:py-3">
                         <div>
                           <div className="font-extrabold text-stone-950">{item.Name}</div>
                           <div className="mt-0.5 text-xs font-semibold text-stone-500">
@@ -961,7 +986,7 @@ export default function POS() {
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-4 rounded-3xl border border-stone-200 bg-white p-4 sm:grid-cols-[1fr_220px] sm:items-center">
+              <div className="mt-3 grid gap-3 rounded-2xl border border-stone-200 bg-white p-3 sm:mt-4 sm:grid-cols-[1fr_220px] sm:items-center sm:rounded-3xl sm:p-4">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between gap-3">
                     <span className="text-stone-500">Tạm tính</span>
@@ -997,7 +1022,7 @@ export default function POS() {
               </div>
             </div>
 
-            <div className="grid gap-2 border-t border-stone-100 bg-white p-4 sm:grid-cols-2">
+            <div className="grid shrink-0 gap-2 border-t border-stone-100 bg-white p-3 sm:grid-cols-2 sm:p-4">
               <button
                 type="button"
                 onClick={() => setMobilePaymentOrder(null)}
@@ -1026,7 +1051,7 @@ export default function POS() {
         <button
           onClick={() => {
             loadBootstrap();
-            if (activeTab === 'dashboard') loadReports();
+            if (activeTab === 'dashboard' && revenueOtpVerified) loadReports();
           }}
           className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-bold text-stone-700 transition hover:bg-stone-100 sm:w-auto"
         >
@@ -1170,21 +1195,21 @@ export default function POS() {
               </div>
             </div>
 
-            <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4 2xl:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 p-2 sm:gap-3 sm:p-4 2xl:grid-cols-3">
               {pagedItems.map((item) => (
                 <button
                   key={item.Id}
                   disabled={!currentOrder || isSaving}
                   onClick={() => addItem(item)}
-                  className="group min-h-[112px] rounded-2xl border border-stone-200 bg-white p-3 text-left transition active:scale-[.99] hover:border-amber-400 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[138px] sm:p-4"
+                  className="group min-h-[96px] rounded-xl border border-stone-200 bg-white p-2.5 text-left transition active:scale-[.99] hover:border-amber-400 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-[138px] sm:rounded-2xl sm:p-4"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-800">{item.Code}</span>
-                    <Plus className="h-5 w-5 text-stone-300 transition group-hover:text-amber-600" />
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-extrabold text-amber-800 sm:px-2.5 sm:py-1 sm:text-xs">{item.Code}</span>
+                    <Plus className="h-4 w-4 text-stone-300 transition group-hover:text-amber-600 sm:h-5 sm:w-5" />
                   </div>
-                  <h3 className="mt-3 text-base font-extrabold text-stone-950">{item.Name}</h3>
-                  <p className="mt-2 line-clamp-1 text-sm text-stone-500">{item.Description || item.Unit}</p>
-                  <p className="mt-3 text-lg font-extrabold text-emerald-700 sm:text-xl">{formatVnd(item.Price)}</p>
+                  <h3 className="mt-2 line-clamp-2 text-sm font-extrabold leading-tight text-stone-950 sm:mt-3 sm:text-base">{item.Name}</h3>
+                  <p className="mt-1 line-clamp-1 text-xs text-stone-500 sm:mt-2 sm:text-sm">{item.Description || item.Unit}</p>
+                  <p className="mt-2 text-base font-extrabold text-emerald-700 sm:mt-3 sm:text-xl">{formatVnd(item.Price)}</p>
                 </button>
               ))}
             </div>
@@ -1636,7 +1661,17 @@ export default function POS() {
         </div>
       )}
 
-      {activeTab === 'dashboard' && (
+      {activeTab === 'dashboard' && !revenueOtpVerified && (
+        <RevenueOtpPrompt
+          title="Xác minh doanh thu POS"
+          description="Nhập OTP Google Authenticator để xem doanh thu, lịch sử bill và top món bán trong POS."
+          error={revenueOtpError}
+          loading={revenueOtpLoading}
+          onSubmit={submitRevenueOtp}
+        />
+      )}
+
+      {activeTab === 'dashboard' && revenueOtpVerified && (
         <div className="space-y-5">
           <div className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 shadow-warm sm:p-6 lg:flex-row lg:items-center lg:justify-between">
             <div>

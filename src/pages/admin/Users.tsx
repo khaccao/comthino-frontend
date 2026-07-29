@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { userApi, roleApi } from '../../services/api';
 import { useAuthStore } from '../../utils/authStore';
 import PermissionGuard from '../../components/PermissionGuard';
-import { User as UserIcon, Lock, Unlock, Edit, Trash2, Plus, Shield, X } from 'lucide-react';
+import { User as UserIcon, Lock, Unlock, Edit, Trash2, Plus, Shield, X, KeyRound, ShieldCheck } from 'lucide-react';
 import { User, Role } from '../../types';
 
 export default function Users() {
+  const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,6 +14,11 @@ export default function Users() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [twoFactorSetup, setTwoFactorSetup] = useState<{
+    secret: string;
+    otpauthUrl: string;
+    user: { id: string; email: string; fullName: string };
+  } | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,6 +29,7 @@ export default function Users() {
   });
 
   const MENU_CODE = 'USER_MANAGEMENT';
+  const isSuperAdmin = Boolean(currentUser?.isSystemAdmin || currentUser?.roles?.includes('SUPERADMIN') || currentUser?.role === 'SUPERADMIN');
 
   const loadData = async () => {
     try {
@@ -122,6 +129,28 @@ export default function Users() {
     }
   };
 
+  const handleSetupTwoFactor = async (user: User) => {
+    const label = user.twoFactorEnabled ? 'reset mã 2FA' : 'bật 2FA';
+    if (!window.confirm(`Bạn có chắc muốn ${label} cho ${user.email}?`)) return;
+    try {
+      const data = await userApi.setupTwoFactor(user.id);
+      setTwoFactorSetup(data);
+      await loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Lỗi kích hoạt 2FA');
+    }
+  };
+
+  const handleDisableTwoFactor = async (user: User) => {
+    if (!window.confirm(`Tắt 2FA cho ${user.email}? Tài khoản này sẽ không xem được doanh thu cho tới khi bật lại.`)) return;
+    try {
+      await userApi.disableTwoFactor(user.id);
+      await loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Lỗi tắt 2FA');
+    }
+  };
+
   if (loading) return <div className="p-8 text-center">Đang tải...</div>;
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
 
@@ -149,6 +178,7 @@ export default function Users() {
               <th className="p-4">Email / SĐT</th>
               <th className="p-4">Vai trò</th>
               <th className="p-4">Trạng thái</th>
+              <th className="p-4">2FA</th>
               <th className="p-4">Ngày tạo</th>
               <th className="p-4 text-right">Thao tác</th>
             </tr>
@@ -180,6 +210,14 @@ export default function Users() {
                     {user.isActive ? 'Hoạt động' : 'Đã khóa'}
                   </span>
                 </td>
+                <td className="p-4">
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+                    user.twoFactorEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-100 text-stone-600'
+                  }`}>
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    {user.twoFactorEnabled ? 'Đã bật' : 'Chưa bật'}
+                  </span>
+                </td>
                 <td className="p-4 text-stone-500">
                   {new Date(user.createdAt).toLocaleDateString('vi-VN')}
                 </td>
@@ -199,9 +237,30 @@ export default function Users() {
                       <button
                         onClick={() => handleOpenModal(user)}
                         className="p-1.5 text-blue-600 rounded hover:bg-stone-200"
+                        title="Sửa tài khoản"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
+                      {isSuperAdmin && (
+                        <>
+                          <button
+                            onClick={() => handleSetupTwoFactor(user)}
+                            className="p-1.5 text-emerald-700 rounded hover:bg-emerald-50"
+                            title={user.twoFactorEnabled ? 'Reset 2FA' : 'Bật 2FA'}
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </button>
+                          {user.twoFactorEnabled && (
+                            <button
+                              onClick={() => handleDisableTwoFactor(user)}
+                              className="p-1.5 text-stone-500 rounded hover:bg-stone-200"
+                              title="Tắt 2FA"
+                            >
+                              <Shield className="w-4 h-4" />
+                            </button>
+                          )}
+                        </>
+                      )}
                     </PermissionGuard>
                     <PermissionGuard menuCode={MENU_CODE} permissionCode="DELETE">
                       {!user.isSystemAdmin && (
@@ -220,6 +279,52 @@ export default function Users() {
           </tbody>
         </table>
       </div>
+
+      {twoFactorSetup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-stone-200 px-6 py-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Google Authenticator</p>
+                <h2 className="text-xl font-black text-stone-950">Thiết lập 2FA</h2>
+              </div>
+              <button onClick={() => setTwoFactorSetup(null)} className="rounded-lg p-2 hover:bg-stone-100">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4 p-6">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                Mở Google Authenticator, chọn thêm tài khoản mới, rồi nhập setup key dưới đây cho tài khoản <b>{twoFactorSetup.user.email}</b>.
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-bold text-stone-700">Setup key</label>
+                <div className="flex gap-2">
+                  <input readOnly value={twoFactorSetup.secret} className="min-w-0 flex-1 rounded-xl border border-stone-300 bg-stone-50 px-3 py-3 font-mono text-sm font-bold tracking-wider" />
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard?.writeText(twoFactorSetup.secret)}
+                    className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-bold text-white"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-bold text-stone-700">OTP Auth URL</label>
+                <textarea readOnly value={twoFactorSetup.otpauthUrl} className="h-24 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-3 text-xs font-semibold text-stone-600" />
+              </div>
+              <p className="text-xs font-semibold text-stone-500">
+                Sau khi lưu key vào Google Authenticator, người dùng nhập mã 6 số để xem Dashboard tổng và Doanh thu POS.
+              </p>
+            </div>
+            <div className="flex justify-end border-t bg-stone-50 px-6 py-4">
+              <button onClick={() => setTwoFactorSetup(null)} className="rounded-xl bg-amber-600 px-5 py-2 font-bold text-white">
+                Đã lưu mã
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">

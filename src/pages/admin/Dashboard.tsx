@@ -14,6 +14,7 @@ import {
   Utensils,
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
+import RevenueOtpPrompt from '../../components/admin/RevenueOtpPrompt';
 
 interface DashboardStats {
   totalItems: number;
@@ -108,29 +109,64 @@ export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [revenueOtp, setRevenueOtp] = useState('');
+  const [revenueOtpVerified, setRevenueOtpVerified] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpLoading, setOtpLoading] = useState(false);
 
-  const loadData = async () => {
+  const loadData = async (otpCode = revenueOtp) => {
     try {
       setIsLoading(true);
       setError(null);
-      const res = await adminApi.getDashboard();
-      if (res.success) setStats(res.data);
+      const res = await adminApi.getDashboard(otpCode);
+      if (res.success) {
+        setStats(res.data);
+        setRevenueOtp(otpCode);
+        setRevenueOtpVerified(true);
+        setOtpError(null);
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Không tải được dashboard tổng thể.');
+      const code = err.response?.data?.code;
+      const message = err.response?.data?.message || 'Không tải được dashboard tổng thể.';
+      if (code === 'INVALID_REVENUE_OTP' || code === 'TWO_FACTOR_REQUIRED') {
+        setRevenueOtpVerified(false);
+        setOtpError(message);
+        setStats(null);
+      } else {
+        setError(message);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    setIsLoading(false);
   }, []);
+
+  const submitRevenueOtp = async (otp: string) => {
+    setOtpLoading(true);
+    await loadData(otp);
+    setOtpLoading(false);
+  };
 
   const business = stats?.business;
   const maxDaily = useMemo(() => {
     const values = business?.daily?.flatMap((item) => [item.revenue, item.expense]) || [1];
     return Math.max(...values, 1);
   }, [business?.daily]);
+
+  if (!revenueOtpVerified) {
+    return (
+      <RevenueOtpPrompt
+        title="Xác minh dashboard tổng"
+        description="Dashboard tổng có doanh thu POS, lợi nhuận và doanh thu tháng. Vui lòng nhập OTP Google Authenticator để tiếp tục."
+        error={otpError}
+        loading={otpLoading || isLoading}
+        onSubmit={submitRevenueOtp}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -161,7 +197,7 @@ export default function Dashboard() {
           </div>
           <button
             type="button"
-            onClick={loadData}
+            onClick={() => loadData()}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-bold text-stone-700 hover:bg-white"
           >
             <RefreshCw className="h-4 w-4" />

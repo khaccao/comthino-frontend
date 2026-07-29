@@ -12,6 +12,8 @@ export interface User {
   role: string;
   isActive: boolean;
   isSystemAdmin: boolean;
+  twoFactorEnabled?: boolean;
+  twoFactorActivatedAt?: string | null;
   avatarUrl?: string | null;
   roles: string[];
   permissions?: UserPermission[];

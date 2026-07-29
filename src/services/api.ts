@@ -30,7 +30,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+    if (error.response && error.response.status === 401) {
       // If unauthorized, log out the user
       useAuthStore.getState().logout();
     }
@@ -75,7 +75,8 @@ export const authApi = {
 
 // --- ADMIN APIs ---
 export const adminApi = {
-  getDashboard: () => api.get('/admin/dashboard').then(res => res.data),
+  getDashboard: (otp?: string) =>
+    api.get('/admin/dashboard', otp ? { headers: { 'x-otp-code': otp } } : undefined).then(res => res.data),
   
   // Site Settings
   getSiteSettings: () => api.get('/admin/site-settings').then(res => res.data),
@@ -192,8 +193,10 @@ export const adminApi = {
   confirmPosKitchen: (orderId: string) => api.post(`/admin/pos/orders/${orderId}/confirm-kitchen`).then(res => res.data),
   payPosOrder: (orderId: string, paymentMethod: string) =>
     api.post(`/admin/pos/orders/${orderId}/pay`, { paymentMethod }).then(res => res.data),
-  getPosHistory: (date?: string) => api.get('/admin/pos/orders/history', { params: { date } }).then(res => res.data),
-  getPosDashboard: (date?: string) => api.get('/admin/pos/dashboard', { params: { date } }).then(res => res.data),
+  getPosHistory: (date?: string, otp?: string) =>
+    api.get('/admin/pos/orders/history', { params: { date }, ...(otp ? { headers: { 'x-otp-code': otp } } : {}) }).then(res => res.data),
+  getPosDashboard: (date?: string, otp?: string) =>
+    api.get('/admin/pos/dashboard', { params: { date }, ...(otp ? { headers: { 'x-otp-code': otp } } : {}) }).then(res => res.data),
   updatePosPaymentSetting: (data: any) => api.put('/admin/pos/payment-setting', data).then(res => res.data),
   updatePosPrintTemplate: (code: string, content: string) =>
     api.put(`/admin/pos/print-templates/${code}`, { content }).then(res => res.data),
@@ -211,6 +214,8 @@ export const userApi = {
   lock: (id: string) => api.patch(`/admin/users/${id}/lock`).then(unwrapData),
   unlock: (id: string) => api.patch(`/admin/users/${id}/unlock`).then(unwrapData),
   delete: (id: string) => api.delete(`/admin/users/${id}`).then(unwrapData),
+  setupTwoFactor: (id: string) => api.post(`/admin/users/${id}/2fa/setup`).then(unwrapData),
+  disableTwoFactor: (id: string) => api.delete(`/admin/users/${id}/2fa`).then(unwrapData),
   getRoles: (userId: string) => api.get(`/admin/users/${userId}/roles`).then(unwrapItems),
   updateRoles: (userId: string, roles: string[]) =>
     api.put(`/admin/users/${userId}/roles`, { roles }).then(unwrapData),
