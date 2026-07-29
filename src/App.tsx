@@ -59,7 +59,13 @@ export default function App() {
           <Route path="com-ngon-ha-dong" element={<StaticSeoPage />} />
           <Route path="com-ngon-van-quan" element={<StaticSeoPage />} />
           <Route path="quan-com-ngon-van-quan" element={<StaticSeoPage />} />
+          <Route path="quan-com-ngon-ha-dong" element={<StaticSeoPage />} />
           <Route path="com-van-phong-ha-dong" element={<StaticSeoPage />} />
+          <Route path="com-trua-van-phong-ha-dong" element={<StaticSeoPage />} />
+          <Route path="com-que-ha-dong" element={<StaticSeoPage />} />
+          <Route path="com-van-quan" element={<StaticSeoPage />} />
+          <Route path="com-gia-dinh-ha-dong" element={<StaticSeoPage />} />
+          <Route path="com-mang-ve-ha-dong" element={<StaticSeoPage />} />
           <Route path="dat-com-van-phong-van-quan" element={<StaticSeoPage />} />
           <Route path="an-gi-o-van-quan-ha-dong" element={<StaticSeoPage />} />
           <Route path="quan-com-gia-dinh-ha-dong" element={<StaticSeoPage />} />

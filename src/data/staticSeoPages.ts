@@ -32,6 +32,96 @@ const commonRelated = [
   { label: 'Đặt cơm văn phòng Hà Đông', href: '/com-van-phong-ha-dong' },
 ];
 
+const localSeoRelated = [
+  { label: 'Cơm Văn Quán', href: '/com-van-quan' },
+  { label: 'Cơm văn phòng Hà Đông', href: '/com-van-phong-ha-dong' },
+  { label: 'Cơm trưa văn phòng Hà Đông', href: '/com-trua-van-phong-ha-dong' },
+  { label: 'Cơm gia đình Hà Đông', href: '/com-gia-dinh-ha-dong' },
+  { label: 'Cơm quê Hà Đông', href: '/com-que-ha-dong' },
+  { label: 'Quán cơm ngon Hà Đông', href: '/quan-com-ngon-ha-dong' },
+  { label: 'Cơm mang về Hà Đông', href: '/com-mang-ve-ha-dong' },
+  ...commonRelated,
+];
+
+function buildLocalLandingPage(input: {
+  path: string;
+  title: string;
+  seoTitle: string;
+  description: string;
+  keywords: string;
+  heroLabel: string;
+  primaryKeyword: string;
+  intent: string;
+  service: string;
+}): StaticSeoPage {
+  return {
+    path: input.path,
+    title: input.title,
+    seoTitle: input.seoTitle,
+    description: input.description,
+    keywords: input.keywords,
+    category: 'local',
+    heroLabel: input.heroLabel,
+    intro: `${input.primaryKeyword} tại Cơm Thị Nở dành cho khách ở Văn Quán, Hà Đông muốn có một bữa cơm Bắc Bộ nóng, sạch, dễ ăn và đặt được theo nhu cầu ${input.intent}.`,
+    sections: [
+      {
+        heading: `${input.primaryKeyword} tại Văn Quán, Hà Đông`,
+        body: [
+          `Cơm Thị Nở nằm tại ${restaurantInfo.address}, thuận tiện cho khách quanh Nguyễn Khuyến, KĐT Văn Quán, Phúc La, Mỗ Lao, Trần Phú và Chiến Thắng. Khi khách tìm ${input.primaryKeyword}, điều quan trọng không chỉ là một suất cơm no bụng, mà còn là món ăn hợp khẩu vị, lên nóng, dễ chia sẻ và có thể đặt trước đúng giờ.`,
+          `Quán chọn phong vị cơm Bắc Bộ làm nền: cơm nóng, món kho đậm vị, món rang/xào vừa miệng, canh thanh và rau theo mùa. Nhờ cách phối món này, bữa ăn phù hợp cả khách văn phòng, khách gia đình, nhóm bạn và khách cần cơm mang về tại Hà Đông.`,
+        ],
+      },
+      {
+        heading: `Vì sao chọn Cơm Thị Nở cho ${input.service}?`,
+        body: [
+          `Thực đơn được xây quanh những món quen thuộc như cá kho riềng, thịt rang cháy cạnh, sườn xào chua ngọt, gà rang, canh cua cà pháo, rau xào theo mùa và các món ăn kèm dân dã. Mỗi nhóm khách có thể gọi theo suất, theo mâm hoặc theo ngân sách để bữa cơm gọn mà vẫn đủ món.`,
+          `Với khách đi nhóm, quán tư vấn mâm cơm cân bằng giữa món mặn, canh, rau và món kèm. Với khách văn phòng, quán ưu tiên thời gian chuẩn bị và đóng gói. Với khách gia đình, món được chọn theo khẩu vị chung, dễ ăn cho cả người lớn và trẻ nhỏ.`,
+        ],
+        bullets: [
+          'Vị cơm nhà Bắc Bộ, dễ ăn trong bữa trưa và bữa tối.',
+          'Nhận đặt trước theo số người, khung giờ và ngân sách.',
+          'Phù hợp ăn tại quán, mang về, cơm văn phòng và mâm gia đình.',
+          'Khu vực phục vụ tập trung quanh Văn Quán, Hà Đông.',
+        ],
+      },
+      {
+        heading: 'Món ăn nổi bật nên thử',
+        body: [
+          `Nếu lần đầu ghé quán, khách có thể bắt đầu bằng cá kho riềng ăn cùng cơm nóng, thêm canh cua cà pháo để cân bằng vị. Nhóm thích món đậm đà có thể chọn thịt rang cháy cạnh, sườn xào chua ngọt, gà rang gừng hoặc rau xào theo mùa.`,
+          `Với đơn văn phòng hoặc cơm đoàn, quán có thể gợi ý thực đơn xoay vòng để tránh lặp món. Các món kèm như trứng, rau, dưa muối, cơm thêm hoặc món nhỏ được chuẩn bị để khách dễ điều chỉnh theo số lượng người ăn.`,
+        ],
+      },
+      {
+        heading: 'Không gian quán và trải nghiệm dùng bữa',
+        body: [
+          `Không gian Cơm Thị Nở hướng đến sự ấm cúng, gần với một bữa cơm gia đình hơn là bữa ăn vội. Khách có thể dùng bữa tại quán, gọi món theo mâm, hoặc đặt trước để quán chuẩn bị bàn cho nhóm đông người.`,
+          `Với khách cần ${input.service}, việc gọi trước giúp quán xác nhận món trong ngày, thời gian nhận và cách đóng gói phù hợp. Đây là cách tốt nhất để bữa cơm đến tay khách vẫn nóng, rõ món và đúng nhu cầu.`,
+        ],
+      },
+      {
+        heading: 'Khu vực phục vụ tại Hà Đông',
+        body: [
+          `Cơm Thị Nở tập trung phục vụ Văn Quán, Nguyễn Khuyến, Phúc La, Mỗ Lao, Trần Phú, Chiến Thắng và các khu dân cư, văn phòng lân cận. Toàn bộ thông tin tên quán, địa chỉ, số điện thoại và bản đồ được giữ thống nhất để khách dễ tìm và đặt cơm.`,
+          `Khách có thể gọi ${restaurantInfo.phone} để hỏi thực đơn trong ngày, đặt bàn, đặt cơm văn phòng, đặt cơm mang về hoặc tư vấn mâm cơm gia đình tại Hà Đông.`,
+        ],
+      },
+    ],
+    faqs: [
+      { question: `${input.primaryKeyword} có nhận đặt trước không?`, answer: 'Có. Khách nên gọi trước để quán xác nhận món trong ngày, số lượng, khung giờ nhận và cách chuẩn bị phù hợp.' },
+      { question: 'Cơm Thị Nở ở khu vực nào?', answer: `Quán ở ${restaurantInfo.address}.` },
+      { question: 'Có cơm mang về hoặc giao quanh Hà Đông không?', answer: 'Có. Quán nhận cơm mang về và hỗ trợ đơn gần khu Văn Quán, Hà Đông theo tình hình phục vụ trong ngày.' },
+      { question: 'Có phù hợp đặt cơm văn phòng không?', answer: 'Có. Quán nhận đặt theo suất, theo mâm hoặc theo nhóm công ty, ưu tiên thực đơn dễ ăn và đúng giờ.' },
+      { question: 'Có nhận tiệc gia đình hoặc cơm đoàn không?', answer: 'Có. Khách báo số người, ngân sách và khẩu vị để quán tư vấn mâm cơm phù hợp.' },
+      { question: 'Món nào được khách gọi nhiều?', answer: 'Các món phổ biến gồm cá kho riềng, thịt rang cháy cạnh, sườn xào chua ngọt, canh cua cà pháo, rau theo mùa và cơm niêu.' },
+      { question: 'Có xuất VAT cho đơn công ty không?', answer: 'Quán hỗ trợ thông tin hóa đơn theo yêu cầu. Khách nên báo trước khi đặt đơn công ty.' },
+      { question: 'Giờ phục vụ của quán là khi nào?', answer: `Giờ phục vụ tham khảo: ${restaurantInfo.hours}. Khách nên gọi trước vào giờ cao điểm.` },
+      { question: 'Có chỗ cho nhóm gia đình không?', answer: 'Có. Khách đi nhóm nên đặt trước để quán chuẩn bị bàn và món nhanh hơn.' },
+      { question: 'Làm sao xem đường đi?', answer: 'Khách có thể mở Google Maps từ website hoặc gọi hotline để được hướng dẫn đường tới quán.' },
+    ],
+    related: localSeoRelated.filter((item) => item.href !== input.path).slice(0, 8),
+  };
+}
+
 export const staticSeoPages: StaticSeoPage[] = [
   {
     path: '/com-ngon-ha-dong',
@@ -450,6 +540,72 @@ export const staticSeoPages: StaticSeoPage[] = [
     ],
     related: commonRelated,
   },
+  buildLocalLandingPage({
+    path: '/com-que-ha-dong',
+    title: 'Cơm quê Hà Đông',
+    seoTitle: 'Cơm quê Hà Đông | Cơm Bắc Bộ tại Cơm Thị Nở',
+    description: 'Cơm quê Hà Đông tại Cơm Thị Nở: món Bắc Bộ, cơm nóng, cá kho, thịt rang, canh cua, rau theo mùa, ăn tại quán hoặc đặt mang về.',
+    keywords: 'cơm quê Hà Đông, cơm Bắc Bộ, Cơm Thị Nở, quán cơm Hà Đông, cơm Văn Quán',
+    heroLabel: 'Cơm quê Hà Đông',
+    primaryKeyword: 'Cơm quê Hà Đông',
+    intent: 'ăn cơm quê, cơm Bắc Bộ và mâm cơm gia đình',
+    service: 'cơm quê Hà Đông',
+  }),
+  buildLocalLandingPage({
+    path: '/com-gia-dinh-ha-dong',
+    title: 'Cơm gia đình Hà Đông',
+    seoTitle: 'Cơm gia đình Hà Đông | Mâm cơm Bắc Bộ Văn Quán',
+    description: 'Cơm gia đình Hà Đông tại Cơm Thị Nở: mâm cơm Bắc Bộ ấm cúng, món kho, canh, rau, cơm niêu, phù hợp gia đình và nhóm bạn.',
+    keywords: 'cơm gia đình Hà Đông, mâm cơm gia đình Hà Đông, cơm Bắc Bộ Văn Quán, Cơm Thị Nở',
+    heroLabel: 'Cơm gia đình',
+    primaryKeyword: 'Cơm gia đình Hà Đông',
+    intent: 'ăn cùng gia đình, đặt mâm và gặp mặt nhóm nhỏ',
+    service: 'mâm cơm gia đình Hà Đông',
+  }),
+  buildLocalLandingPage({
+    path: '/com-trua-van-phong-ha-dong',
+    title: 'Cơm trưa văn phòng Hà Đông',
+    seoTitle: 'Cơm trưa văn phòng Hà Đông | Đặt cơm Văn Quán',
+    description: 'Đặt cơm trưa văn phòng Hà Đông tại Cơm Thị Nở: thực đơn dễ ăn, cơm nóng, món Bắc Bộ, nhận đơn nhóm quanh Văn Quán.',
+    keywords: 'cơm trưa văn phòng Hà Đông, cơm văn phòng Hà Đông, đặt cơm trưa Văn Quán, cơm công ty Hà Đông',
+    heroLabel: 'Cơm trưa văn phòng',
+    primaryKeyword: 'Cơm trưa văn phòng Hà Đông',
+    intent: 'đặt cơm trưa cho nhân sự, nhóm văn phòng và công ty',
+    service: 'cơm trưa văn phòng Hà Đông',
+  }),
+  buildLocalLandingPage({
+    path: '/com-van-quan',
+    title: 'Cơm Văn Quán',
+    seoTitle: 'Cơm Văn Quán | Quán cơm Bắc Bộ tại Nguyễn Khuyến',
+    description: 'Cơm Văn Quán tại Cơm Thị Nở Nguyễn Khuyến: cơm Bắc Bộ, cơm văn phòng, cơm gia đình, món kho, canh cua và cơm mang về.',
+    keywords: 'Cơm Văn Quán, cơm Nguyễn Khuyến, cơm ngon Văn Quán, Cơm Thị Nở, cơm Hà Đông',
+    heroLabel: 'Cơm Văn Quán',
+    primaryKeyword: 'Cơm Văn Quán',
+    intent: 'ăn tại quán, đặt cơm văn phòng và cơm mang về quanh Văn Quán',
+    service: 'cơm Văn Quán',
+  }),
+  buildLocalLandingPage({
+    path: '/quan-com-ngon-ha-dong',
+    title: 'Quán cơm ngon Hà Đông',
+    seoTitle: 'Quán cơm ngon Hà Đông | Cơm Thị Nở Văn Quán',
+    description: 'Quán cơm ngon Hà Đông Cơm Thị Nở phục vụ cơm Bắc Bộ, cơm văn phòng, cơm gia đình, cơm mang về tại Văn Quán.',
+    keywords: 'quán cơm ngon Hà Đông, cơm ngon Hà Đông, cơm Bắc Bộ Hà Đông, Cơm Thị Nở, cơm Văn Quán',
+    heroLabel: 'Quán cơm ngon Hà Đông',
+    primaryKeyword: 'Quán cơm ngon Hà Đông',
+    intent: 'tìm quán cơm ngon, dễ ăn và phù hợp nhiều nhóm khách',
+    service: 'quán cơm ngon Hà Đông',
+  }),
+  buildLocalLandingPage({
+    path: '/com-mang-ve-ha-dong',
+    title: 'Cơm mang về Hà Đông',
+    seoTitle: 'Cơm mang về Hà Đông | Đặt cơm nóng Văn Quán',
+    description: 'Cơm mang về Hà Đông tại Cơm Thị Nở: đặt cơm nóng, món Bắc Bộ, đóng gói gọn, phù hợp bữa trưa văn phòng và bữa tối gia đình.',
+    keywords: 'cơm mang về Hà Đông, đặt cơm mang về Văn Quán, cơm hộp Hà Đông, Cơm Thị Nở',
+    heroLabel: 'Cơm mang về',
+    primaryKeyword: 'Cơm mang về Hà Đông',
+    intent: 'đặt món mang về, lấy nhanh và ăn tại nhà hoặc văn phòng',
+    service: 'cơm mang về Hà Đông',
+  }),
 ];
 
 export const staticSeoPagesByPath = Object.fromEntries(staticSeoPages.map((page) => [page.path, page]));

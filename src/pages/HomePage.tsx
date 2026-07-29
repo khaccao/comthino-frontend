@@ -4,6 +4,77 @@ import { Phone, MapPin, Calendar, Users, MessageSquare, Heart, Star, Send, X, Zo
 import { publicApi } from '../services/api';
 import { SiteSettings, Banner, HomeSection, MenuCategory, MenuItem, Promotion, GalleryImage, Testimonial, BlogPost } from '../types';
 import MenuBook from '../components/MenuBook';
+import { canonicalUrl, upsertJsonLd, upsertLink, upsertMeta } from '../utils/seo';
+
+const homeSeoTitle = 'Cơm Thị Nở | Quán Cơm Văn Phòng Hà Đông Chuẩn Bắc Bộ';
+const homeSeoDescription =
+  'Cơm Thị Nở - quán cơm ngon Văn Quán Hà Đông, phục vụ cơm văn phòng, cơm gia đình, cơm mang về và đặt tiệc chuẩn vị Bắc Bộ mỗi ngày tại Nguyễn Khuyến.';
+
+const seoLandingLinks = [
+  { label: 'Cơm Văn Quán', href: '/com-van-quan' },
+  { label: 'Cơm Hà Đông', href: '/com-ngon-ha-dong' },
+  { label: 'Cơm văn phòng Hà Đông', href: '/com-van-phong-ha-dong' },
+  { label: 'Cơm trưa văn phòng Hà Đông', href: '/com-trua-van-phong-ha-dong' },
+  { label: 'Cơm gia đình Hà Đông', href: '/com-gia-dinh-ha-dong' },
+  { label: 'Cơm quê Hà Đông', href: '/com-que-ha-dong' },
+  { label: 'Quán cơm ngon Hà Đông', href: '/quan-com-ngon-ha-dong' },
+  { label: 'Cơm mang về Hà Đông', href: '/com-mang-ve-ha-dong' },
+];
+
+const seoServiceBlocks = [
+  {
+    title: 'Cơm văn phòng Hà Đông',
+    href: '/com-van-phong-ha-dong',
+    text:
+      'Bữa trưa văn phòng cần nhanh, sạch, dễ ăn và đúng giờ. Cơm Thị Nở chuẩn bị các suất cơm và mâm cơm theo nhóm cho khu Văn Quán, Nguyễn Khuyến, Phúc La, Mỗ Lao, Trần Phú và các văn phòng lân cận.',
+  },
+  {
+    title: 'Cơm gia đình Hà Đông',
+    href: '/com-gia-dinh-ha-dong',
+    text:
+      'Khách đi gia đình có thể gọi mâm cơm Bắc Bộ với món kho, món rang, canh cua, rau theo mùa và món kèm. Quán ưu tiên vị cơm nhà, dễ ăn cho cả người lớn, trẻ nhỏ và nhóm nhiều khẩu vị.',
+  },
+  {
+    title: 'Cơm mang về Hà Đông',
+    href: '/com-mang-ve-ha-dong',
+    text:
+      'Nếu cần ăn tại nhà hoặc văn phòng, khách có thể gọi trước để quán chuẩn bị cơm nóng, đóng gói gọn, giữ món riêng và hẹn giờ lấy. Đây là lựa chọn tiện cho bữa trưa, bữa tối hoặc đơn nhóm nhỏ.',
+  },
+  {
+    title: 'Tiệc gia đình, cơm đoàn',
+    href: '/dat-com',
+    text:
+      'Với tiệc sinh nhật, gặp mặt gia đình hoặc bữa cơm công ty, quán tư vấn thực đơn theo số người, ngân sách và khẩu vị. Mâm cơm có thể phối món mặn, canh, rau, món kèm để lên bàn đầy đặn.',
+  },
+];
+
+const homeFaqs = [
+  {
+    question: 'Cơm Thị Nở ở đâu tại Hà Đông?',
+    answer:
+      'Quán ở A16TT18 Nguyễn Khuyến, KĐT Văn Quán, Hà Đông, Hà Nội, thuận tiện cho khách quanh Văn Quán, Phúc La, Mỗ Lao, Trần Phú và Chiến Thắng.',
+  },
+  {
+    question: 'Quán có nhận cơm văn phòng Hà Đông không?',
+    answer:
+      'Có. Khách văn phòng nên đặt trước buổi sáng để quán tư vấn món, chốt số lượng và chuẩn bị đúng khung giờ nghỉ trưa.',
+  },
+  {
+    question: 'Có cơm mang về hoặc đặt cơm theo nhóm không?',
+    answer:
+      'Có. Cơm Thị Nở nhận cơm mang về, đặt theo suất, đặt theo mâm gia đình và đơn nhóm công ty quanh khu vực Hà Đông.',
+  },
+  {
+    question: 'Món nổi bật của quán là gì?',
+    answer:
+      'Các món được khách gọi nhiều gồm cá kho riềng, thịt rang cháy cạnh, sườn xào chua ngọt, canh cua cà pháo, rau theo mùa và cơm niêu nóng.',
+  },
+  {
+    question: 'Quán có phù hợp đặt tiệc gia đình không?',
+    answer:
+      'Có. Khách có thể đặt mâm cơm cho gia đình, sinh nhật nhỏ, gặp mặt cuối tuần hoặc cơm đoàn theo ngân sách.',
+  },
+];
 
 export default function HomePage() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
@@ -53,6 +124,73 @@ export default function HomePage() {
         setFeaturedItems(featured);
       }
     }).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    const pageUrl = canonicalUrl('/');
+    document.title = homeSeoTitle;
+    upsertLink('link[rel="canonical"]', { href: pageUrl });
+    upsertMeta('meta[name="title"]', { content: homeSeoTitle });
+    upsertMeta('meta[name="description"]', { content: homeSeoDescription });
+    upsertMeta('meta[name="keywords"]', {
+      content:
+        'Cơm Văn Quán, Cơm Hà Đông, Cơm Bắc Bộ, Cơm văn phòng Hà Đông, Quán cơm ngon Hà Đông, Cơm gia đình Hà Đông, Cơm mang về Hà Đông, Cơm Thị Nở',
+    });
+    upsertMeta('meta[property="og:title"]', { content: homeSeoTitle });
+    upsertMeta('meta[property="og:description"]', { content: homeSeoDescription });
+    upsertMeta('meta[name="twitter:title"]', { content: homeSeoTitle });
+    upsertMeta('meta[name="twitter:description"]', { content: homeSeoDescription });
+
+    upsertJsonLd('home-local-seo-jsonld', {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': ['Restaurant', 'LocalBusiness'],
+          '@id': `${pageUrl}#restaurant`,
+          name: 'Cơm Thị Nở',
+          url: pageUrl,
+          telephone: '+84971170103',
+          priceRange: '$$',
+          servesCuisine: ['Cơm Việt Nam', 'Cơm Bắc Bộ', 'Cơm văn phòng', 'Cơm gia đình'],
+          areaServed: ['Văn Quán', 'Hà Đông', 'Nguyễn Khuyến', 'Phúc La', 'Mỗ Lao', 'Trần Phú'],
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: 'A16TT18 Nguyễn Khuyến, KĐT Văn Quán',
+            addressLocality: 'Hà Đông',
+            addressRegion: 'Hà Nội',
+            postalCode: '100000',
+            addressCountry: 'VN',
+          },
+          openingHours: 'Mo-Su 09:00-22:00',
+          hasMap: 'https://share.google/hEGDxD42rKNQeEOfh',
+        },
+        {
+          '@type': 'FAQPage',
+          mainEntity: homeFaqs.map((faq) => ({
+            '@type': 'Question',
+            name: faq.question,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: faq.answer,
+            },
+          })),
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Trang chủ', item: pageUrl }],
+        },
+        {
+          '@type': 'ItemList',
+          name: 'Dịch vụ SEO địa phương của Cơm Thị Nở',
+          itemListElement: seoLandingLinks.map((item, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            name: item.label,
+            url: canonicalUrl(item.href),
+          })),
+        },
+      ],
+    });
   }, []);
 
   // Banner slide duration timer
@@ -155,6 +293,7 @@ export default function HomePage() {
                     <img
                       src={renderImg(banner.imageUrl)}
                       alt={banner.title}
+                      loading="eager"
                       className="w-full h-full object-cover"
                     />
 
@@ -254,7 +393,7 @@ export default function HomePage() {
               ['Cơm ngon Hà Đông', '/com-ngon-ha-dong'],
               ['Cơm ngon Văn Quán', '/com-ngon-van-quan'],
               ['Cơm văn phòng Hà Đông', '/com-van-phong-ha-dong'],
-              ['Đặt cơm đoàn Hà Đông', '/com-doan-ha-dong'],
+              ['Cơm gia đình Hà Đông', '/com-gia-dinh-ha-dong'],
             ].map(([label, href]) => (
               <a
                 key={href}
@@ -265,6 +404,98 @@ export default function HomePage() {
               </a>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section id="seo-dia-phuong" className="bg-quecan-cream/70 py-16 md:py-20">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 md:px-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-10">
+            <div className="max-w-4xl space-y-4">
+              <span className="block text-xs font-bold uppercase tracking-widest text-quecan-orange">
+                Cơm Thị Nở Restaurant
+              </span>
+              <h2 className="font-serif text-3xl font-bold leading-tight text-quecan-brown md:text-4xl">
+                Quán cơm ngon Hà Đông cho bữa trưa văn phòng và mâm cơm gia đình
+              </h2>
+              <p className="text-sm leading-relaxed text-quecan-brown/75 md:text-base">
+                Cơm Thị Nở phục vụ những bữa cơm Bắc Bộ quen vị tại Văn Quán, Hà Đông. Thực đơn của quán hướng đến món ăn dễ dùng hằng ngày:
+                cơm nóng, cá kho, thịt rang, sườn xào, canh cua, rau theo mùa và các món kèm dân dã. Khách tìm Cơm Văn Quán, Cơm Hà Đông,
+                Cơm văn phòng Hà Đông hay Cơm gia đình Hà Đông đều có thể chọn ăn tại quán, gọi mang về hoặc đặt trước theo nhóm.
+              </p>
+              <p className="text-sm leading-relaxed text-quecan-brown/75 md:text-base">
+                Điểm mạnh của quán không nằm ở cách làm quá cầu kỳ, mà ở sự đều tay: món lên nóng, vị vừa miệng, có đủ mặn, canh, rau và cơm.
+                Với khách văn phòng, quán ưu tiên sự gọn gàng, đúng giờ và dễ chia suất. Với khách gia đình, mâm cơm được tư vấn theo số người,
+                khẩu vị và ngân sách để bữa ăn đủ đầy nhưng không lãng phí.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {seoServiceBlocks.map((item) => (
+                <article key={item.href} className="rounded-xl border border-quecan-beige/45 bg-white p-6 shadow-warm">
+                  <h3 className="font-serif text-2xl font-bold text-quecan-brown">
+                    <a href={item.href} className="hover:text-quecan-orange">
+                      {item.title}
+                    </a>
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-quecan-brown/72">{item.text}</p>
+                </article>
+              ))}
+            </div>
+
+            <div className="rounded-xl border border-quecan-beige/45 bg-white p-6 shadow-warm md:p-8">
+              <h2 className="font-serif text-3xl font-bold text-quecan-brown">Món ăn nổi bật và cách chọn mâm cơm</h2>
+              <div className="mt-5 grid gap-6 text-sm leading-relaxed text-quecan-brown/75 md:grid-cols-3">
+                <div>
+                  <h3 className="font-bold text-quecan-brown">Món Bắc Bộ dễ gọi</h3>
+                  <p className="mt-2">
+                    Cá kho riềng, thịt rang cháy cạnh, sườn xào chua ngọt, gà rang, canh cua cà pháo và rau xào theo mùa là nhóm món hợp
+                    cả khách đi một mình lẫn gia đình.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-bold text-quecan-brown">Gợi ý cơm văn phòng</h3>
+                  <p className="mt-2">
+                    Với nhóm công ty, nên chọn món mặn dễ ăn, một món canh, rau và món kèm. Khách có thể đặt theo suất hoặc theo mâm để
+                    phù hợp ngân sách.
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-bold text-quecan-brown">Không gian quán</h3>
+                  <p className="mt-2">
+                    Không gian Cơm Thị Nở phù hợp bữa trưa nhanh, bữa tối gia đình và các buổi gặp mặt nhỏ. Khách đi nhóm nên liên hệ trước
+                    để quán chuẩn bị bàn.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside className="space-y-5">
+            <div className="rounded-xl border border-quecan-beige/45 bg-white p-5 shadow-warm lg:sticky lg:top-24">
+              <h2 className="font-serif text-2xl font-bold text-quecan-brown">Khu vực phục vụ</h2>
+              <p className="mt-3 text-sm leading-relaxed text-quecan-brown/75">
+                Quán phục vụ khách quanh A16TT18 Nguyễn Khuyến, KĐT Văn Quán, Phúc La, Mỗ Lao, Trần Phú, Chiến Thắng và các khu văn phòng
+                lân cận Hà Đông.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {seoLandingLinks.map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className="rounded-full border border-quecan-beige/60 bg-quecan-cream/50 px-3 py-2 text-xs font-bold text-quecan-brown hover:border-quecan-orange hover:text-quecan-orange"
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+              <a
+                href="#dat-com"
+                className="mt-6 inline-flex w-full items-center justify-center rounded-lg bg-quecan-orange px-4 py-3 text-sm font-bold text-white shadow-warm"
+              >
+                Đặt bàn / đặt cơm
+              </a>
+            </div>
+          </aside>
         </div>
       </section>
 
@@ -289,6 +520,7 @@ export default function HomePage() {
                       <img
                         src={renderImg(section.imageUrl)}
                         alt={section.title}
+                        loading="lazy"
                         className="w-full h-[350px] md:h-[400px] object-cover hover:scale-105 transition-transform duration-700"
                       />
                     </div>
@@ -371,6 +603,7 @@ export default function HomePage() {
                     <img
                       src={renderImg(item.imageUrl)}
                       alt={item.name}
+                      loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=400&auto=format&fit=crop';
@@ -520,6 +753,7 @@ export default function HomePage() {
                 <img
                   src={renderImg(promotions[0].imageUrl)}
                   alt={promotions[0].title}
+                  loading="lazy"
                   className="w-full h-[300px] md:h-[350px] object-cover"
                 />
               </div>
@@ -558,6 +792,7 @@ export default function HomePage() {
                   <img
                     src={renderImg(img.imageUrl)}
                     alt={img.title || 'Gallery Cơm Thị Nở'}
+                    loading="lazy"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   {/* Hover Overlay */}
@@ -636,6 +871,7 @@ export default function HomePage() {
                       <img
                         src={t.avatarUrl}
                         alt={t.customerName}
+                        loading="lazy"
                         className="w-10 h-10 rounded-full object-cover border border-quecan-golden"
                       />
                     ) : (
@@ -654,6 +890,25 @@ export default function HomePage() {
           </div>
         </section>
       )}
+
+      <section id="faq" className="bg-white py-16 md:py-20">
+        <div className="mx-auto max-w-5xl px-4 md:px-6">
+          <div className="mb-10 text-center">
+            <span className="block text-xs font-bold uppercase tracking-widest text-quecan-orange">FAQ</span>
+            <h2 className="mt-3 font-serif text-3xl font-bold text-quecan-brown md:text-4xl">
+              Câu hỏi thường gặp về Cơm Thị Nở
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {homeFaqs.map((faq) => (
+              <details key={faq.question} className="rounded-xl border border-quecan-beige/45 bg-quecan-cream/35 p-5">
+                <summary className="cursor-pointer font-bold text-quecan-brown">{faq.question}</summary>
+                <p className="mt-3 text-sm leading-relaxed text-quecan-brown/75">{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* 8. ĐẶT CƠM ĐOÀN / CƠM CÔNG TY */}
       <section id="dat-com" className="py-20 bg-quecan-cream relative">

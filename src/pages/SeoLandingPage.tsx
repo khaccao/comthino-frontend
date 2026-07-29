@@ -229,10 +229,14 @@ export default function SeoLandingPage() {
               <li><Link to="/com-ngon-ha-dong" className="text-amber-700 hover:underline">Cơm ngon Hà Đông</Link></li>
               <li><Link to="/com-ngon-van-quan" className="text-amber-700 hover:underline">Cơm ngon Văn Quán</Link></li>
               <li><Link to="/quan-com-ngon-van-quan" className="text-amber-700 hover:underline">Quán cơm ngon Văn Quán</Link></li>
+              <li><Link to="/quan-com-ngon-ha-dong" className="text-amber-700 hover:underline">Quán cơm ngon Hà Đông</Link></li>
               <li><Link to="/com-van-phong-ha-dong" className="text-amber-700 hover:underline">Cơm văn phòng Hà Đông</Link></li>
+              <li><Link to="/com-trua-van-phong-ha-dong" className="text-amber-700 hover:underline">Cơm trưa văn phòng Hà Đông</Link></li>
               <li><Link to="/com-que-ha-dong" className="text-amber-700 hover:underline">Cơm quê Hà Đông</Link></li>
+              <li><Link to="/com-van-quan" className="text-amber-700 hover:underline">Cơm Văn Quán</Link></li>
               <li><Link to="/com-nieu-ha-dong" className="text-amber-700 hover:underline">Cơm niêu Hà Đông</Link></li>
               <li><Link to="/com-gia-dinh-ha-dong" className="text-amber-700 hover:underline">Cơm gia đình Hà Đông</Link></li>
+              <li><Link to="/com-mang-ve-ha-dong" className="text-amber-700 hover:underline">Cơm mang về Hà Đông</Link></li>
               <li><Link to="/com-doan-ha-dong" className="text-amber-700 hover:underline">Đặt cơm đoàn Hà Đông</Link></li>
             </ul>
           </div>

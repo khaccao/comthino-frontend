@@ -42,10 +42,10 @@ export default function PublicLayout() {
   // Update HTML dynamic title & meta tags from SiteSettings for SEO
   useEffect(() => {
     if (settings && location.pathname === '/') {
-      const title = settings.seoTitle || 'Cơm ngon Hà Đông, Văn Quán | Cơm Thị Nở';
+      const title = settings.seoTitle || 'Cơm Thị Nở | Quán Cơm Văn Phòng Hà Đông Chuẩn Bắc Bộ';
       const description =
         settings.seoDescription ||
-        'Cơm Thị Nở phục vụ cơm quê Bắc Bộ, cơm niêu, cơm văn phòng và đặt cơm đoàn tại A16TT18 Nguyễn Khuyến, KĐT Văn Quán, Hà Đông.';
+        'Cơm Thị Nở - quán cơm ngon Văn Quán Hà Đông, phục vụ cơm văn phòng, cơm gia đình, cơm mang về và đặt tiệc chuẩn vị Bắc Bộ mỗi ngày tại Nguyễn Khuyến.';
       const pageUrl = canonicalUrl(location.pathname);
       const imageUrl = absoluteAssetUrl(settings.logoUrl);
       const siteName = settings.siteName || 'Cơm Thị Nở';
@@ -59,7 +59,7 @@ export default function PublicLayout() {
       upsertMeta('meta[name="keywords"]', {
         content:
           settings.seoKeywords ||
-          'cơm ngon Hà Đông, cơm ngon Văn Quán, quán cơm ngon Văn Quán, cơm quê Hà Đông, cơm văn phòng Hà Đông, Cơm Thị Nở',
+          'Cơm Văn Quán, Cơm Hà Đông, Cơm Bắc Bộ, Cơm văn phòng Hà Đông, Quán cơm ngon Hà Đông, Cơm gia đình Hà Đông, Cơm mang về Hà Đông, Cơm Thị Nở',
       });
 
       upsertMeta('meta[property="og:url"]', { content: pageUrl });

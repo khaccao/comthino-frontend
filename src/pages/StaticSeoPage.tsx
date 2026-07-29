@@ -4,6 +4,16 @@ import { ArrowRight, Clock, MapPin, Phone } from 'lucide-react';
 import { restaurantInfo, staticSeoPagesByPath } from '../data/staticSeoPages';
 import { absoluteAssetUrl, canonicalUrl, upsertJsonLd, upsertLink, upsertMeta } from '../utils/seo';
 
+const mapEmbedUrl =
+  'https://www.google.com/maps?q=A16TT18%20Nguyen%20Khuyen%20KDT%20Van%20Quan%20Ha%20Dong%20Ha%20Noi&output=embed';
+
+const suggestedMenu = [
+  { name: 'Cá kho riềng', href: '/mon-an/ca-kho-rieng', description: 'Món kho đậm vị Bắc Bộ, hợp cơm nóng và canh cua.' },
+  { name: 'Canh cua cà pháo', href: '/mon-an/canh-cua-ca-phao', description: 'Món canh dân dã, cân bằng mâm cơm gia đình.' },
+  { name: 'Thịt rang cháy cạnh', href: '/thuc-don', description: 'Món mặn dễ gọi cho bữa trưa văn phòng và mâm nhóm.' },
+  { name: 'Rau theo mùa', href: '/thuc-don', description: 'Món rau/xào/luộc giúp bữa cơm gọn mà đủ vị.' },
+];
+
 export default function StaticSeoPage() {
   const location = useLocation();
   const cleanPath = location.pathname.replace(/\/+$/, '') || '/';
@@ -79,6 +89,18 @@ export default function StaticSeoPage() {
         })),
       });
     }
+
+    upsertJsonLd('static-menu-itemlist-jsonld', {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: `Món gợi ý cho ${page.title}`,
+      itemListElement: suggestedMenu.map((item, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: item.name,
+        url: canonicalUrl(item.href),
+      })),
+    });
   }, [page]);
 
   if (!page) return <Navigate to="/" replace />;
@@ -124,6 +146,22 @@ export default function StaticSeoPage() {
             </div>
           </div>
 
+          <section className="rounded-xl border border-quecan-beige/40 bg-white p-5 shadow-warm md:p-8">
+            <h2 className="font-serif text-2xl font-bold text-quecan-brown">Thực đơn nên thử</h2>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {suggestedMenu.map((item) => (
+                <a
+                  key={`${page.path}-${item.name}`}
+                  href={item.href}
+                  className="rounded-lg border border-quecan-beige/45 bg-quecan-cream/30 p-4 transition hover:border-quecan-orange hover:bg-white"
+                >
+                  <h3 className="font-bold text-quecan-brown">{item.name}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-quecan-brown/72">{item.description}</p>
+                </a>
+              ))}
+            </div>
+          </section>
+
           {page.faqs && page.faqs.length > 0 && (
             <section className="rounded-xl border border-quecan-beige/40 bg-white p-5 shadow-warm md:p-8">
               <h2 className="font-serif text-2xl font-bold text-quecan-brown">Câu hỏi thường gặp</h2>
@@ -137,6 +175,25 @@ export default function StaticSeoPage() {
               </div>
             </section>
           )}
+
+          <section className="overflow-hidden rounded-xl border border-quecan-beige/40 bg-white shadow-warm">
+            <div className="p-5 md:p-8">
+              <h2 className="font-serif text-2xl font-bold text-quecan-brown">Bản đồ Cơm Thị Nở</h2>
+              <p className="mt-2 text-sm leading-relaxed text-quecan-brown/75">
+                Địa chỉ thống nhất: {restaurantInfo.address}. Khách có thể mở bản đồ hoặc gọi hotline để đặt bàn, đặt cơm văn phòng và cơm mang về.
+              </p>
+            </div>
+            <iframe
+              src={mapEmbedUrl}
+              title={`Bản đồ ${restaurantInfo.name}`}
+              width="100%"
+              height="320"
+              style={{ border: 0 }}
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </section>
         </div>
 
         <aside className="space-y-5">

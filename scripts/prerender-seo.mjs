@@ -69,6 +69,24 @@ function renderStaticContent(page, restaurantInfo) {
         .map((item) => `<li><a href="${escapeAttr(item.href)}">${escapeHtml(item.label)}</a></li>`)
         .join('')}</ul></nav>`
     : '';
+  const menuSuggestions = `
+    <section>
+      <h2>Thực đơn nên thử</h2>
+      <ul>
+        <li><a href="/mon-an/ca-kho-rieng">Cá kho riềng</a> - món kho đậm vị Bắc Bộ, hợp cơm nóng.</li>
+        <li><a href="/mon-an/canh-cua-ca-phao">Canh cua cà pháo</a> - món canh dân dã cho mâm cơm gia đình.</li>
+        <li><a href="/thuc-don">Thịt rang cháy cạnh</a> - món mặn dễ gọi cho cơm văn phòng.</li>
+        <li><a href="/thuc-don">Rau theo mùa</a> - món rau giúp bữa cơm cân bằng.</li>
+      </ul>
+    </section>
+  `;
+  const mapBlock = `
+    <section>
+      <h2>Bản đồ Cơm Thị Nở</h2>
+      <p>Địa chỉ: ${escapeHtml(restaurantInfo.address)}. Hotline: <a href="tel:${escapeAttr(restaurantInfo.tel)}">${escapeHtml(restaurantInfo.phone)}</a>.</p>
+      <iframe title="Bản đồ Cơm Thị Nở" src="https://www.google.com/maps?q=A16TT18%20Nguyen%20Khuyen%20KDT%20Van%20Quan%20Ha%20Dong%20Ha%20Noi&output=embed" width="100%" height="320" loading="lazy"></iframe>
+    </section>
+  `;
 
   return `
     <main class="seo-snapshot">
@@ -77,6 +95,7 @@ function renderStaticContent(page, restaurantInfo) {
         <h1>${escapeHtml(page.title)}</h1>
         <p>${escapeHtml(page.intro)}</p>
         ${sections}
+        ${menuSuggestions}
         ${faqs}
         <aside>
           <h2>Đặt cơm nhanh</h2>
@@ -84,6 +103,7 @@ function renderStaticContent(page, restaurantInfo) {
           <p>Hotline: <a href="tel:${escapeAttr(restaurantInfo.tel)}">${escapeHtml(restaurantInfo.phone)}</a></p>
           <p>Giờ phục vụ: ${escapeHtml(restaurantInfo.hours)}</p>
         </aside>
+        ${mapBlock}
         ${related}
       </article>
     </main>
