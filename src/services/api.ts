@@ -283,6 +283,24 @@ export const payrollApi = {
   getRuns: () => api.get('/admin/payroll/runs').then(unwrapItems),
   generateRun: (data: any) => api.post('/admin/payroll/runs/generate', data).then(unwrapData),
   deleteRun: (id: string) => api.delete(`/admin/payroll/runs/${id}`).then(unwrapData),
+  getKpiLevels: () => api.get('/admin/payroll/kpi-levels').then(unwrapItems),
+  createKpiLevel: (data: any) => api.post('/admin/payroll/kpi-levels', data).then(unwrapData),
+  updateKpiLevel: (id: string, data: any) => api.put(`/admin/payroll/kpi-levels/${id}`, data).then(unwrapData),
+  deleteKpiLevel: (id: string) => api.delete(`/admin/payroll/kpi-levels/${id}`).then(unwrapData),
+  getKpiRecords: (params?: { from?: string; to?: string }) =>
+    api.get('/admin/payroll/kpi-records', { params }).then(unwrapItems),
+  createKpiRecord: (data: any) => api.post('/admin/payroll/kpi-records', data).then(unwrapData),
+  updateKpiRecord: (id: string, data: any) => api.put(`/admin/payroll/kpi-records/${id}`, data).then(unwrapData),
+  deleteKpiRecord: (id: string) => api.delete(`/admin/payroll/kpi-records/${id}`).then(unwrapData),
+  getAdjustmentCategories: () => api.get('/admin/payroll/adjustment-categories').then(unwrapItems),
+  createAdjustmentCategory: (data: any) => api.post('/admin/payroll/adjustment-categories', data).then(unwrapData),
+  updateAdjustmentCategory: (id: string, data: any) => api.put(`/admin/payroll/adjustment-categories/${id}`, data).then(unwrapData),
+  deleteAdjustmentCategory: (id: string) => api.delete(`/admin/payroll/adjustment-categories/${id}`).then(unwrapData),
+  getAdjustments: (params?: { from?: string; to?: string }) =>
+    api.get('/admin/payroll/adjustments', { params }).then(unwrapItems),
+  createAdjustment: (data: any) => api.post('/admin/payroll/adjustments', data).then(unwrapData),
+  updateAdjustment: (id: string, data: any) => api.put(`/admin/payroll/adjustments/${id}`, data).then(unwrapData),
+  deleteAdjustment: (id: string) => api.delete(`/admin/payroll/adjustments/${id}`).then(unwrapData),
 };
 
 // --- AUDIT LOG API ---
