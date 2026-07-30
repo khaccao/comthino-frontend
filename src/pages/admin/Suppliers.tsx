@@ -9,9 +9,13 @@ type DebtStatus = 'PAID' | 'PENDING_PAYMENT' | 'UNPAID';
 interface Supplier {
   id: string;
   name: string;
+  contactName?: string | null;
   phone?: string | null;
   taxCode?: string | null;
   address?: string | null;
+  bankName?: string | null;
+  bankAccountNo?: string | null;
+  bankAccountName?: string | null;
   currentDebt: number;
   pendingPaymentAmount?: number;
   debtStatus?: DebtStatus;
@@ -29,6 +33,7 @@ interface Supplier {
 
 const emptyForm = {
   name: '',
+  contactName: '',
   phone: '',
   taxCode: '',
   address: '',
@@ -39,6 +44,9 @@ const emptyForm = {
   paymentWarningDays: '3',
   dueMode: 'days' as 'days' | 'date',
   isActive: true,
+  bankName: '',
+  bankAccountNo: '',
+  bankAccountName: '',
 };
 
 const todayKey = () => {
@@ -131,6 +139,7 @@ export default function Suppliers() {
       setEditingSupplier(sup);
       setFormData({
         name: sup.name,
+        contactName: sup.contactName || '',
         phone: sup.phone || '',
         taxCode: sup.taxCode || '',
         address: sup.address || '',
@@ -141,6 +150,9 @@ export default function Suppliers() {
         paymentWarningDays: String(sup.paymentWarningDays ?? 3),
         dueMode: sup.paymentDueDate && !sup.paymentTermDays ? 'date' : 'days',
         isActive: sup.isActive,
+        bankName: sup.bankName || '',
+        bankAccountNo: sup.bankAccountNo || '',
+        bankAccountName: sup.bankAccountName || '',
       });
     } else {
       setEditingSupplier(null);
@@ -156,10 +168,14 @@ export default function Suppliers() {
       const termDays = formData.dueMode === 'days' ? Number(formData.paymentTermDays || 0) : null;
       const payload = {
         name: formData.name.trim(),
+        contactName: formData.contactName.trim() || null,
         phone: formData.phone.trim() || null,
         taxCode: formData.taxCode.trim() || null,
         address: formData.address.trim() || null,
-        currentDebt: debt,
+        currentDebt: editingSupplier ? Number(editingSupplier.currentDebt || 0) : debt,
+        bankName: formData.bankName.trim() || null,
+        bankAccountNo: formData.bankAccountNo.trim() || null,
+        bankAccountName: formData.bankAccountName.trim() || null,
         paymentTerm: formData.paymentTerm.trim() || (termDays !== null ? `${termDays} ngày` : null),
         paymentTermDays: termDays,
         paymentDueDate: formData.dueMode === 'date' ? formData.paymentDueDate : null,
@@ -318,8 +334,10 @@ export default function Suppliers() {
                     </div>
                   </td>
                   <td className="p-4">
-                    <div>{sup.phone || '-'}</div>
+                    <div>{sup.contactName || sup.phone || '-'}</div>
+                    {sup.contactName && <div className="text-xs text-stone-500">SĐT: {sup.phone || '-'}</div>}
                     <div className="text-xs text-stone-500">MST: {sup.taxCode || '-'}</div>
+                    {sup.bankAccountNo && <div className="mt-1 text-xs font-semibold text-blue-700">{sup.bankName || 'Ngân hàng'}: {sup.bankAccountNo}</div>}
                   </td>
                   <td className="p-4">
                     {sup.paymentDueDate ? (
@@ -394,13 +412,33 @@ export default function Suppliers() {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
+                    <label className="mb-1 block text-sm font-bold text-stone-700">Người liên hệ</label>
+                    <input type="text" value={formData.contactName} onChange={e => setFormData({ ...formData, contactName: e.target.value })} className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100" />
+                  </div>
+                  <div>
                     <label className="mb-1 block text-sm font-bold text-stone-700">Số điện thoại</label>
                     <input type="text" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100" />
                   </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
                   <div>
                     <label className="mb-1 block text-sm font-bold text-stone-700">Mã số thuế</label>
                     <input type="text" value={formData.taxCode} onChange={e => setFormData({ ...formData, taxCode: e.target.value })} className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100" />
                   </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-bold text-stone-700">Ngân hàng</label>
+                    <input type="text" value={formData.bankName} onChange={e => setFormData({ ...formData, bankName: e.target.value })} className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-bold text-stone-700">Số tài khoản</label>
+                    <input type="text" value={formData.bankAccountNo} onChange={e => setFormData({ ...formData, bankAccountNo: e.target.value })} className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-bold text-stone-700">Tên chủ tài khoản</label>
+                  <input type="text" value={formData.bankAccountName} onChange={e => setFormData({ ...formData, bankAccountName: e.target.value })} className="w-full rounded-xl border border-stone-300 px-3 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100" />
                 </div>
 
                 <div>
@@ -455,16 +493,14 @@ export default function Suppliers() {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-sm font-bold text-stone-700">Công nợ hiện tại</label>
+                    <label className="mb-1 block text-sm font-bold text-stone-700">Công nợ tổng hợp</label>
                     <input
                       type="text"
                       value={formData.currentDebt}
-                      onChange={e => {
-                        const val = e.target.value.replace(/[^0-9]/g, '');
-                        setFormData({ ...formData, currentDebt: val ? Number(val).toLocaleString('en-US') : '0' });
-                      }}
-                      className="w-full rounded-xl border border-stone-300 px-3 py-3 text-right font-black text-red-600 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                      readOnly
+                      className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-3 text-right font-black text-red-600 outline-none"
                     />
+                    <p className="mt-1 text-xs font-semibold text-stone-500">Tạo/sửa công nợ ở màn Phiếu công nợ NCC.</p>
                   </div>
                   <label className="mt-7 flex items-center rounded-xl border border-stone-200 px-4 py-3">
                     <input type="checkbox" checked={formData.isActive} onChange={e => setFormData({ ...formData, isActive: e.target.checked })} className="h-4 w-4 rounded text-amber-600" />

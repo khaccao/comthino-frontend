@@ -13,6 +13,7 @@ const todayInputValue = () => {
 export default function PaymentVouchers() {
   const [vouchers, setVouchers] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [supplierDebts, setSupplierDebts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [methods, setMethods] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -22,6 +23,7 @@ export default function PaymentVouchers() {
   const [formData, setFormData] = useState({
     paymentDate: todayInputValue(),
     requestId: '',
+    supplierDebtId: '',
     receiverName: '',
     reason: '',
     amount: '',
@@ -38,15 +40,17 @@ export default function PaymentVouchers() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [vouData, reqData, catData, metData, accData] = await Promise.all([
+      const [vouData, reqData, catData, metData, accData, debtData] = await Promise.all([
         paymentApi.getVouchers(),
         paymentApi.getRequests(),
         paymentApi.getExpenseCategories(),
         paymentApi.getPaymentMethods(),
-        paymentApi.getCashAccounts()
+        paymentApi.getCashAccounts(),
+        paymentApi.getSupplierDebts({ status: 'ALL' })
       ]);
       setVouchers(vouData);
       setRequests(reqData.filter((r: any) => r.status === 'APPROVED')); // Only approved requests
+      setSupplierDebts(debtData.filter((item: any) => ['UNPAID', 'PARTIAL'].includes(item.status) && Number(item.remainingAmount || 0) > 0));
       setCategories(catData.filter((c: any) => c.isActive));
       setMethods(metData.filter((m: any) => m.isActive));
       setAccounts(accData.filter((a: any) => a.isActive));
@@ -68,6 +72,7 @@ export default function PaymentVouchers() {
         ...formData,
         paymentDate: formData.paymentDate,
         requestId: reqId,
+        supplierDebtId: '',
         receiverName: req.supplier?.name || req.requester?.fullName || '',
         reason: req.reason,
         amount: req.amount.toString(),
@@ -75,6 +80,22 @@ export default function PaymentVouchers() {
       });
     } else {
       setFormData({ ...formData, requestId: '' });
+    }
+  };
+
+  const handleSupplierDebtChange = (debtId: string) => {
+    const debt = supplierDebts.find(item => item.id === debtId);
+    if (debt) {
+      setFormData({
+        ...formData,
+        requestId: '',
+        supplierDebtId: debtId,
+        receiverName: debt.supplier?.name || '',
+        reason: `Thanh toán công nợ ${debt.code} - ${debt.title}`,
+        amount: Number(debt.remainingAmount || 0).toLocaleString('en-US'),
+      });
+    } else {
+      setFormData({ ...formData, supplierDebtId: '' });
     }
   };
 
@@ -86,12 +107,13 @@ export default function PaymentVouchers() {
         paymentDate: formData.paymentDate,
         amount: Number(formData.amount.replace(/[^0-9]/g, '')),
         requestId: formData.requestId || undefined,
+        supplierDebtId: formData.supplierDebtId || undefined,
       };
       await paymentApi.createVoucher(payload);
       setIsModalOpen(false);
       loadData();
       setFormData({
-        paymentDate: todayInputValue(), requestId: '', receiverName: '', reason: '', amount: '',
+        paymentDate: todayInputValue(), requestId: '', supplierDebtId: '', receiverName: '', reason: '', amount: '',
         paymentMethodId: '', cashAccountId: '', expenseCategoryId: '', attachmentUrl: '', notes: ''
       });
     } catch (err: any) {
@@ -226,6 +248,18 @@ export default function PaymentVouchers() {
                     <option value="">-- Tạo tự do --</option>
                     {requests.map(r => <option key={r.id} value={r.id}>{r.code} - {formatCurrency(r.amount)} - {r.reason}</option>)}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm mb-1">Thanh toán phiếu công nợ NCC (Không bắt buộc)</label>
+                  <select value={formData.supplierDebtId} onChange={e => handleSupplierDebtChange(e.target.value)} className="w-full px-3 py-2 border rounded-lg">
+                    <option value="">-- Không gắn công nợ --</option>
+                    {supplierDebts.map(item => (
+                      <option key={item.id} value={item.id}>
+                        {item.code} - {item.supplier?.name} - còn {formatCurrency(item.remainingAmount)} - hạn {formatDate(item.dueDate)}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-stone-500">Khi ghi sổ, khoản này sẽ giảm đúng phiếu công nợ đã chọn.</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>

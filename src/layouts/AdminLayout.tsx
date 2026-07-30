@@ -128,6 +128,7 @@ export default function AdminLayout() {
         { label: 'Duyệt đề nghị chi', path: '/admin/payments/approvals', icon: CheckSquare, menuCode: 'PAYMENT_REQUEST_APPROVAL' },
         { label: 'Phiếu chi', path: '/admin/payments/vouchers', icon: CreditCard, menuCode: 'PAYMENT_VOUCHER' },
         { label: 'Nhà cung cấp', path: '/admin/suppliers', icon: Truck, menuCode: 'SUPPLIER_CATEGORY' },
+        { label: 'Công nợ NCC', path: '/admin/suppliers/debt', icon: AlertTriangle, menuCode: 'SUPPLIER_DEBT' },
         { label: 'Tài khoản tiền', path: '/admin/cash/accounts', icon: BookOpen, menuCode: 'BANK_ACCOUNT' },
         { label: 'Báo cáo thu chi', path: '/admin/reports/cash', icon: BarChart2, menuCode: 'CASH_REPORT' },
       ],

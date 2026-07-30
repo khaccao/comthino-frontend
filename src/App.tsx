@@ -40,6 +40,7 @@ import PaymentRequests from './pages/admin/PaymentRequests';
 import PaymentVouchers from './pages/admin/PaymentVouchers';
 import PaymentDashboard from './pages/admin/PaymentDashboard';
 import Suppliers from './pages/admin/Suppliers';
+import SupplierDebts from './pages/admin/SupplierDebts';
 import CashAccounts from './pages/admin/CashAccounts';
 import PaymentApprovals from './pages/admin/PaymentApprovals';
 import CashReports from './pages/admin/CashReports';
@@ -120,6 +121,7 @@ export default function App() {
           <Route path="cash/accounts" element={<CashAccounts />} />
           <Route path="reports/cash" element={<CashReports />} />
           <Route path="suppliers" element={<Suppliers />} />
+          <Route path="suppliers/debt" element={<SupplierDebts />} />
           <Route path="payroll" element={<Payroll />} />
           <Route path="kitchen-inventory" element={<KitchenInventory />} />
         </Route>
