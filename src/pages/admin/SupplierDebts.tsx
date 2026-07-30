@@ -69,12 +69,12 @@ export default function SupplierDebts() {
     status: 'ALL',
   });
 
-  const loadData = async () => {
+  const loadData = async (nextFilters = filters) => {
     try {
       setLoading(true);
       const [supplierData, debtData, summaryData] = await Promise.all([
         paymentApi.getSuppliers(),
-        paymentApi.getSupplierDebts(filters),
+        paymentApi.getSupplierDebts(nextFilters),
         paymentApi.getSupplierDebtSummary(),
       ]);
       setSuppliers(supplierData);
@@ -195,7 +195,7 @@ export default function SupplierDebts() {
               <option value="CANCELLED">Đã hủy</option>
             </select>
           </Field>
-          <button onClick={loadData} className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-bold text-stone-700 hover:bg-white">
+          <button onClick={() => loadData()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-bold text-stone-700 hover:bg-white">
             <RefreshCw className="h-4 w-4" />
             Lọc
           </button>
@@ -210,8 +210,9 @@ export default function SupplierDebts() {
               <button
                 key={item.supplier.id}
                 onClick={() => {
-                  setFilters(prev => ({ ...prev, supplierId: item.supplier.id, status: 'ALL' }));
-                  setTimeout(loadData, 0);
+                  const nextFilters = { ...filters, supplierId: item.supplier.id, status: 'ALL' };
+                  setFilters(nextFilters);
+                  loadData(nextFilters);
                 }}
                 className="w-full rounded-2xl border border-stone-200 p-4 text-left hover:border-amber-300 hover:bg-amber-50"
               >
