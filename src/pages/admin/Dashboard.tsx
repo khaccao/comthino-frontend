@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 import RevenueOtpPrompt from '../../components/admin/RevenueOtpPrompt';
+import { useAuthStore } from '../../utils/authStore';
 
 interface DashboardStats {
   totalItems: number;
@@ -106,11 +107,13 @@ function MetricCard({
 }
 
 export default function Dashboard() {
+  const user = useAuthStore((state) => state.user);
+  const revenueOtpBypassed = Boolean(user?.isSystemAdmin || user?.role === 'SUPERADMIN' || user?.roles?.includes('SUPERADMIN'));
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revenueOtp, setRevenueOtp] = useState('');
-  const [revenueOtpVerified, setRevenueOtpVerified] = useState(false);
+  const [revenueOtpVerified, setRevenueOtpVerified] = useState(revenueOtpBypassed);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [otpLoading, setOtpLoading] = useState(false);
 
@@ -141,8 +144,9 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    setIsLoading(false);
-  }, []);
+    if (revenueOtpBypassed) loadData('');
+    else setIsLoading(false);
+  }, [revenueOtpBypassed]);
 
   const submitRevenueOtp = async (otp: string) => {
     setOtpLoading(true);

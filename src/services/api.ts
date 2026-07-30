@@ -308,3 +308,18 @@ export const auditApi = {
   getLogs: (params?: { page?: number; limit?: number }) =>
     api.get('/admin/audit-logs', { params }).then(r => r.data),
 };
+
+// --- KITCHEN INVENTORY API ---
+export const kitchenInventoryApi = {
+  getBootstrap: (date?: string) => api.get('/admin/kitchen-inventory/bootstrap', { params: { date } }).then(unwrapData),
+  createUnit: (data: any) => api.post('/admin/kitchen-inventory/units', data).then(unwrapData),
+  updateUnit: (id: string, data: any) => api.put(`/admin/kitchen-inventory/units/${id}`, data).then(unwrapData),
+  deleteUnit: (id: string) => api.delete(`/admin/kitchen-inventory/units/${id}`).then(unwrapData),
+  createIngredient: (data: any) => api.post('/admin/kitchen-inventory/ingredients', data).then(unwrapData),
+  updateIngredient: (id: string, data: any) => api.put(`/admin/kitchen-inventory/ingredients/${id}`, data).then(unwrapData),
+  deleteIngredient: (id: string) => api.delete(`/admin/kitchen-inventory/ingredients/${id}`).then(unwrapData),
+  createStockEntry: (data: any) => api.post('/admin/kitchen-inventory/stock-entries', data).then(unwrapData),
+  createRecipe: (data: any) => api.post('/admin/kitchen-inventory/recipes', data).then(unwrapData),
+  updateRecipe: (id: string, data: any) => api.put(`/admin/kitchen-inventory/recipes/${id}`, data).then(unwrapData),
+  deleteRecipe: (id: string) => api.delete(`/admin/kitchen-inventory/recipes/${id}`).then(unwrapData),
+};

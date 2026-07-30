@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { adminApi } from '../../services/api';
 import RevenueOtpPrompt from '../../components/admin/RevenueOtpPrompt';
+import { useAuthStore } from '../../utils/authStore';
 
 type PosTable = {
   Id: string;
@@ -235,6 +236,8 @@ const emptyPaymentForm = {
 };
 
 export default function POS() {
+  const user = useAuthStore((state) => state.user);
+  const revenueOtpBypassed = Boolean(user?.isSystemAdmin || user?.role === 'SUPERADMIN' || user?.roles?.includes('SUPERADMIN'));
   const [activeTab, setActiveTab] = useState<TabKey>('pos');
   const [tables, setTables] = useState<PosTable[]>([]);
   const [categories, setCategories] = useState<PosCategory[]>([]);
@@ -257,7 +260,7 @@ export default function POS() {
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState<PosOrder | null>(null);
   const [dashboard, setDashboard] = useState<PosDashboardData | null>(null);
   const [revenueOtp, setRevenueOtp] = useState('');
-  const [revenueOtpVerified, setRevenueOtpVerified] = useState(false);
+  const [revenueOtpVerified, setRevenueOtpVerified] = useState(revenueOtpBypassed);
   const [revenueOtpError, setRevenueOtpError] = useState<string | null>(null);
   const [revenueOtpLoading, setRevenueOtpLoading] = useState(false);
   const [tableForm, setTableForm] = useState(emptyTableForm);
@@ -347,6 +350,10 @@ export default function POS() {
   useEffect(() => {
     if (activeTab === 'dashboard' && revenueOtpVerified) loadReports();
   }, [activeTab, historyDate, revenueOtpVerified]);
+
+  useEffect(() => {
+    if (revenueOtpBypassed) setRevenueOtpVerified(true);
+  }, [revenueOtpBypassed]);
 
   useEffect(() => {
     setMenuPage(1);

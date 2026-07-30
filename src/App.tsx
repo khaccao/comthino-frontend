@@ -44,6 +44,7 @@ import CashAccounts from './pages/admin/CashAccounts';
 import PaymentApprovals from './pages/admin/PaymentApprovals';
 import CashReports from './pages/admin/CashReports';
 import Payroll from './pages/admin/Payroll';
+import KitchenInventory from './pages/admin/KitchenInventory';
 export default function App() {
   return (
     <BrowserRouter>
@@ -120,6 +121,7 @@ export default function App() {
           <Route path="reports/cash" element={<CashReports />} />
           <Route path="suppliers" element={<Suppliers />} />
           <Route path="payroll" element={<Payroll />} />
+          <Route path="kitchen-inventory" element={<KitchenInventory />} />
         </Route>
 
         {/* CATCH ALL FALLBACK */}
