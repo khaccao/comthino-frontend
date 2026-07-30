@@ -10,6 +10,7 @@ import {
   Plus,
   RefreshCw,
   Save,
+  Search,
   Trash2,
 } from 'lucide-react';
 import { kitchenInventoryApi } from '../../services/api';
@@ -77,6 +78,26 @@ const tabs = [
 const todayKey = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(Number(value || 0));
 const qty = (value: number) => Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+const PAGE_SIZE = 12;
+
+const normalizeText = (value?: string | null) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+const uniqueOptions = (values: Array<string | undefined | null>) =>
+  Array.from(new Set(values.map((value) => String(value || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'vi'));
+
+const paginate = <T,>(items: T[], page: number, pageSize = PAGE_SIZE) => {
+  const pageCount = Math.max(Math.ceil(items.length / pageSize), 1);
+  const safePage = Math.min(Math.max(page, 1), pageCount);
+  return {
+    items: items.slice((safePage - 1) * pageSize, safePage * pageSize),
+    page: safePage,
+    pageCount,
+  };
+};
 
 export default function KitchenInventory() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -87,6 +108,14 @@ export default function KitchenInventory() {
   const [editingIngredientId, setEditingIngredientId] = useState('');
   const [editingUnitId, setEditingUnitId] = useState('');
   const [editingRecipeId, setEditingRecipeId] = useState('');
+  const [stockFilters, setStockFilters] = useState({ search: '', category: '', status: 'all' });
+  const [stockPage, setStockPage] = useState(1);
+  const [recipeFilters, setRecipeFilters] = useState({ search: '', menuItemId: '', ingredientId: '' });
+  const [recipePage, setRecipePage] = useState(1);
+  const [ingredientFilters, setIngredientFilters] = useState({ search: '', category: '', unitId: '', status: 'all' });
+  const [ingredientPage, setIngredientPage] = useState(1);
+  const [unitFilters, setUnitFilters] = useState({ search: '' });
+  const [unitPage, setUnitPage] = useState(1);
   const [ingredientForm, setIngredientForm] = useState({
     code: '',
     name: '',
@@ -120,6 +149,7 @@ export default function KitchenInventory() {
   const stock: StockRow[] = data.stock || [];
   const aiInsights: AiInsight[] = data.aiInsights || [];
   const missingRecipes: MenuItem[] = data.missingRecipes || [];
+  const categories = useMemo(() => uniqueOptions(ingredients.map((item) => item.Category)), [ingredients]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -143,6 +173,57 @@ export default function KitchenInventory() {
     const outToday = stock.reduce((sum, item) => sum + Number(item.OutToday || 0), 0);
     return { stockValue, lowStock, outToday, recipeCount: recipes.length };
   }, [ingredients, recipes.length, stock]);
+
+  const filteredStock = useMemo(() => {
+    const keyword = normalizeText(stockFilters.search);
+    return stock.filter((item) => {
+      const matchesSearch = !keyword || normalizeText(`${item.Code} ${item.Name} ${item.Category} ${item.UnitName}`).includes(keyword);
+      const matchesCategory = !stockFilters.category || item.Category === stockFilters.category;
+      const matchesStatus = stockFilters.status === 'all'
+        || (stockFilters.status === 'low' && Number(item.CurrentStock || 0) <= Number(item.MinStock || 0))
+        || (stockFilters.status === 'usedToday' && Number(item.OutToday || 0) > 0)
+        || (stockFilters.status === 'noMove' && Number(item.InToday || 0) <= 0 && Number(item.OutToday || 0) <= 0);
+      return matchesSearch && matchesCategory && matchesStatus;
+    });
+  }, [stock, stockFilters]);
+
+  const filteredRecipes = useMemo(() => {
+    const keyword = normalizeText(recipeFilters.search);
+    return recipes.filter((item) => {
+      const matchesSearch = !keyword || normalizeText(`${item.MenuItemCode} ${item.MenuItemName} ${item.IngredientName} ${item.UnitName} ${item.Note}`).includes(keyword);
+      const matchesMenu = !recipeFilters.menuItemId || item.MenuItemId === recipeFilters.menuItemId;
+      const matchesIngredient = !recipeFilters.ingredientId || item.IngredientId === recipeFilters.ingredientId;
+      return matchesSearch && matchesMenu && matchesIngredient;
+    });
+  }, [recipes, recipeFilters]);
+
+  const filteredIngredients = useMemo(() => {
+    const keyword = normalizeText(ingredientFilters.search);
+    return ingredients.filter((item) => {
+      const matchesSearch = !keyword || normalizeText(`${item.Code} ${item.Name} ${item.Category} ${item.UnitName}`).includes(keyword);
+      const matchesCategory = !ingredientFilters.category || item.Category === ingredientFilters.category;
+      const matchesUnit = !ingredientFilters.unitId || item.UnitId === ingredientFilters.unitId;
+      const matchesStatus = ingredientFilters.status === 'all'
+        || (ingredientFilters.status === 'low' && Number(item.CurrentStock || 0) <= Number(item.MinStock || 0))
+        || (ingredientFilters.status === 'ok' && Number(item.CurrentStock || 0) > Number(item.MinStock || 0));
+      return matchesSearch && matchesCategory && matchesUnit && matchesStatus;
+    });
+  }, [ingredients, ingredientFilters]);
+
+  const filteredUnits = useMemo(() => {
+    const keyword = normalizeText(unitFilters.search);
+    return units.filter((item) => !keyword || normalizeText(`${item.Code} ${item.Name} ${item.Description}`).includes(keyword));
+  }, [units, unitFilters.search]);
+
+  const stockPageData = useMemo(() => paginate(filteredStock, stockPage, 10), [filteredStock, stockPage]);
+  const recipePageData = useMemo(() => paginate(filteredRecipes, recipePage, 10), [filteredRecipes, recipePage]);
+  const ingredientPageData = useMemo(() => paginate(filteredIngredients, ingredientPage), [filteredIngredients, ingredientPage]);
+  const unitPageData = useMemo(() => paginate(filteredUnits, unitPage), [filteredUnits, unitPage]);
+
+  useEffect(() => setStockPage(1), [stockFilters]);
+  useEffect(() => setRecipePage(1), [recipeFilters]);
+  useEffect(() => setIngredientPage(1), [ingredientFilters]);
+  useEffect(() => setUnitPage(1), [unitFilters]);
 
   const saveIngredient = async () => {
     const payload = { ...ingredientForm };
@@ -295,13 +376,31 @@ export default function KitchenInventory() {
           </div>
 
           <Panel title="Tồn kho hôm nay">
+            <FilterGrid>
+              <SearchInput
+                label="Tìm nguyên liệu"
+                value={stockFilters.search}
+                onChange={(value) => setStockFilters({ ...stockFilters, search: value })}
+                placeholder="Tên, mã, nhóm, đơn vị..."
+              />
+              <Select label="Nhóm" value={stockFilters.category} onChange={(value) => setStockFilters({ ...stockFilters, category: value })}>
+                <option value="">Tất cả nhóm</option>
+                {categories.map((item) => <option key={item} value={item}>{item}</option>)}
+              </Select>
+              <Select label="Trạng thái" value={stockFilters.status} onChange={(value) => setStockFilters({ ...stockFilters, status: value })}>
+                <option value="all">Tất cả trạng thái</option>
+                <option value="low">Thấp tồn</option>
+                <option value="usedToday">Có xuất hôm nay</option>
+                <option value="noMove">Chưa phát sinh</option>
+              </Select>
+            </FilterGrid>
             <div className="overflow-x-auto">
               <table className="min-w-[920px] w-full text-left text-sm">
                 <thead className="bg-stone-50 text-xs uppercase text-stone-500">
                   <tr><th className="p-3">Nguyên liệu</th><th>Nhóm</th><th>Đơn vị</th><th>Đầu/hiện tại</th><th>Nhập hôm nay</th><th>Xuất hôm nay</th><th>Cảnh báo</th></tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
-                  {stock.map((item) => (
+                  {stockPageData.items.map((item) => (
                     <tr key={item.Id}>
                       <td className="p-3 font-black">{item.Name}<div className="text-xs text-stone-400">{item.Code}</div></td>
                       <td>{item.Category || '-'}</td>
@@ -315,6 +414,8 @@ export default function KitchenInventory() {
                 </tbody>
               </table>
             </div>
+            {!filteredStock.length && <EmptyState text="Không có nguyên liệu nào khớp bộ lọc." />}
+            <Pagination page={stockPageData.page} pageCount={stockPageData.pageCount} total={filteredStock.length} onPageChange={setStockPage} />
           </Panel>
         </div>
       )}
@@ -386,8 +487,24 @@ export default function KitchenInventory() {
             </div>
           </Panel>
           <Panel title="Danh sách định lượng">
+            <FilterGrid>
+              <SearchInput
+                label="Tìm định lượng"
+                value={recipeFilters.search}
+                onChange={(value) => setRecipeFilters({ ...recipeFilters, search: value })}
+                placeholder="Tên món, mã món, nguyên liệu..."
+              />
+              <Select label="Món POS" value={recipeFilters.menuItemId} onChange={(value) => setRecipeFilters({ ...recipeFilters, menuItemId: value })}>
+                <option value="">Tất cả món</option>
+                {menuItems.map((item) => <option key={item.Id} value={item.Id}>{item.Name} ({item.Code})</option>)}
+              </Select>
+              <Select label="Nguyên liệu" value={recipeFilters.ingredientId} onChange={(value) => setRecipeFilters({ ...recipeFilters, ingredientId: value })}>
+                <option value="">Tất cả nguyên liệu</option>
+                {ingredients.map((item) => <option key={item.Id} value={item.Id}>{item.Name} ({item.UnitName})</option>)}
+              </Select>
+            </FilterGrid>
             <div className="grid gap-2">
-              {recipes.map((item) => (
+              {recipePageData.items.map((item) => (
                 <div key={item.Id} className="rounded-2xl border border-stone-200 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -406,6 +523,8 @@ export default function KitchenInventory() {
                 </div>
               ))}
             </div>
+            {!filteredRecipes.length && <EmptyState text="Không có dòng định lượng nào khớp bộ lọc." />}
+            <Pagination page={recipePageData.page} pageCount={recipePageData.pageCount} total={filteredRecipes.length} onPageChange={setRecipePage} />
           </Panel>
         </div>
       )}
@@ -434,31 +553,56 @@ export default function KitchenInventory() {
               </div>
             </div>
           </Panel>
-          <CardsGrid>
-            {ingredients.map((item) => (
-              <div key={item.Id} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-wide text-stone-400">{item.Code}</p>
-                    <h3 className="text-lg font-black text-stone-950">{item.Name}</h3>
-                    <p className="text-sm text-stone-500">{item.Category || '-'} · {item.UnitName}</p>
+          <Panel title="Danh sách nguyên liệu">
+            <FilterGrid>
+              <SearchInput
+                label="Tìm nguyên liệu"
+                value={ingredientFilters.search}
+                onChange={(value) => setIngredientFilters({ ...ingredientFilters, search: value })}
+                placeholder="Tên, mã, nhóm..."
+              />
+              <Select label="Nhóm" value={ingredientFilters.category} onChange={(value) => setIngredientFilters({ ...ingredientFilters, category: value })}>
+                <option value="">Tất cả nhóm</option>
+                {categories.map((item) => <option key={item} value={item}>{item}</option>)}
+              </Select>
+              <Select label="Đơn vị" value={ingredientFilters.unitId} onChange={(value) => setIngredientFilters({ ...ingredientFilters, unitId: value })}>
+                <option value="">Tất cả đơn vị</option>
+                {units.map((item) => <option key={item.Id} value={item.Id}>{item.Name}</option>)}
+              </Select>
+              <Select label="Trạng thái tồn" value={ingredientFilters.status} onChange={(value) => setIngredientFilters({ ...ingredientFilters, status: value })}>
+                <option value="all">Tất cả</option>
+                <option value="low">Thấp tồn</option>
+                <option value="ok">Còn ổn</option>
+              </Select>
+            </FilterGrid>
+            <CardsGrid>
+              {ingredientPageData.items.map((item) => (
+                <div key={item.Id} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wide text-stone-400">{item.Code}</p>
+                      <h3 className="text-lg font-black text-stone-950">{item.Name}</h3>
+                      <p className="text-sm text-stone-500">{item.Category || '-'} · {item.UnitName}</p>
+                    </div>
+                    {Number(item.CurrentStock) <= Number(item.MinStock) && <AlertTriangle className="h-5 w-5 text-red-600" />}
                   </div>
-                  {Number(item.CurrentStock) <= Number(item.MinStock) && <AlertTriangle className="h-5 w-5 text-red-600" />}
+                  <div className="mt-4 rounded-xl bg-stone-50 p-3 text-sm">
+                    <div className="flex justify-between"><span>Tồn</span><b>{qty(item.CurrentStock)} {item.UnitName}</b></div>
+                    <div className="mt-2 flex justify-between"><span>Tối thiểu</span><b>{qty(item.MinStock)} {item.UnitName}</b></div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <IconButton icon={Edit2} label="Sửa" onClick={() => {
+                      setEditingIngredientId(item.Id);
+                      setIngredientForm({ code: item.Code, name: item.Name, category: item.Category || '', unitId: item.UnitId || '', currentStock: item.CurrentStock, minStock: item.MinStock, lastCost: item.LastCost, isActive: true });
+                    }} />
+                    <IconButton icon={Trash2} label="Ẩn" onClick={async () => { if (confirm('Ẩn nguyên liệu này?')) { await kitchenInventoryApi.deleteIngredient(item.Id); await loadData(); } }} />
+                  </div>
                 </div>
-                <div className="mt-4 rounded-xl bg-stone-50 p-3 text-sm">
-                  <div className="flex justify-between"><span>Tồn</span><b>{qty(item.CurrentStock)} {item.UnitName}</b></div>
-                  <div className="mt-2 flex justify-between"><span>Tối thiểu</span><b>{qty(item.MinStock)} {item.UnitName}</b></div>
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <IconButton icon={Edit2} label="Sửa" onClick={() => {
-                    setEditingIngredientId(item.Id);
-                    setIngredientForm({ code: item.Code, name: item.Name, category: item.Category || '', unitId: item.UnitId || '', currentStock: item.CurrentStock, minStock: item.MinStock, lastCost: item.LastCost, isActive: true });
-                  }} />
-                  <IconButton icon={Trash2} label="Ẩn" onClick={async () => { if (confirm('Ẩn nguyên liệu này?')) { await kitchenInventoryApi.deleteIngredient(item.Id); await loadData(); } }} />
-                </div>
-              </div>
-            ))}
-          </CardsGrid>
+              ))}
+            </CardsGrid>
+            {!filteredIngredients.length && <EmptyState text="Không có nguyên liệu nào khớp bộ lọc." />}
+            <Pagination page={ingredientPageData.page} pageCount={ingredientPageData.pageCount} total={filteredIngredients.length} onPageChange={setIngredientPage} />
+          </Panel>
         </div>
       )}
 
@@ -478,19 +622,31 @@ export default function KitchenInventory() {
               </div>
             </div>
           </Panel>
-          <CardsGrid>
-            {units.map((item) => (
-              <div key={item.Id} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-wide text-amber-700">{item.Code}</p>
-                <h3 className="mt-1 text-xl font-black text-stone-950">{item.Name}</h3>
-                <p className="mt-2 min-h-10 text-sm text-stone-500">{item.Description || 'Đơn vị bếp'}</p>
-                <div className="mt-3 flex gap-2">
-                  <IconButton icon={Edit2} label="Sửa" onClick={() => { setEditingUnitId(item.Id); setUnitForm({ code: item.Code, name: item.Name, description: item.Description || '', sortOrder: item.SortOrder || 0, isActive: true }); }} />
-                  <IconButton icon={Trash2} label="Ẩn" onClick={async () => { if (confirm('Ẩn đơn vị này?')) { await kitchenInventoryApi.deleteUnit(item.Id); await loadData(); } }} />
+          <Panel title="Danh sách đơn vị">
+            <FilterGrid>
+              <SearchInput
+                label="Tìm đơn vị"
+                value={unitFilters.search}
+                onChange={(value) => setUnitFilters({ search: value })}
+                placeholder="Mã, tên, mô tả..."
+              />
+            </FilterGrid>
+            <CardsGrid>
+              {unitPageData.items.map((item) => (
+                <div key={item.Id} className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-black uppercase tracking-wide text-amber-700">{item.Code}</p>
+                  <h3 className="mt-1 text-xl font-black text-stone-950">{item.Name}</h3>
+                  <p className="mt-2 min-h-10 text-sm text-stone-500">{item.Description || 'Đơn vị bếp'}</p>
+                  <div className="mt-3 flex gap-2">
+                    <IconButton icon={Edit2} label="Sửa" onClick={() => { setEditingUnitId(item.Id); setUnitForm({ code: item.Code, name: item.Name, description: item.Description || '', sortOrder: item.SortOrder || 0, isActive: true }); }} />
+                    <IconButton icon={Trash2} label="Ẩn" onClick={async () => { if (confirm('Ẩn đơn vị này?')) { await kitchenInventoryApi.deleteUnit(item.Id); await loadData(); } }} />
+                  </div>
                 </div>
-              </div>
-            ))}
-          </CardsGrid>
+              ))}
+            </CardsGrid>
+            {!filteredUnits.length && <EmptyState text="Không có đơn vị nào khớp bộ lọc." />}
+            <Pagination page={unitPageData.page} pageCount={unitPageData.pageCount} total={filteredUnits.length} onPageChange={setUnitPage} />
+          </Panel>
         </div>
       )}
     </div>
@@ -518,6 +674,63 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function CardsGrid({ children }: { children: React.ReactNode }) {
   return <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">{children}</div>;
+}
+
+function FilterGrid({ children }: { children: React.ReactNode }) {
+  return <div className="mb-4 grid gap-3 lg:grid-cols-3 xl:grid-cols-4">{children}</div>;
+}
+
+function SearchInput({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-black uppercase tracking-wide text-stone-500">{label}</span>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          className="w-full rounded-xl border border-stone-200 bg-white py-3 pl-10 pr-3 text-sm font-bold text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+        />
+      </div>
+    </label>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return <div className="rounded-2xl border border-dashed border-stone-200 bg-stone-50 p-8 text-center text-sm font-bold text-stone-500">{text}</div>;
+}
+
+function Pagination({ page, pageCount, total, onPageChange }: { page: number; pageCount: number; total: number; onPageChange: (page: number) => void }) {
+  if (pageCount <= 1) {
+    return <p className="mt-4 text-xs font-bold uppercase tracking-wide text-stone-400">{total} dòng</p>;
+  }
+
+  return (
+    <div className="mt-4 flex flex-col gap-3 border-t border-stone-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm font-bold text-stone-500">
+        Trang {page}/{pageCount} · {total} dòng
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-black text-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Trước
+        </button>
+        <button
+          type="button"
+          disabled={page >= pageCount}
+          onClick={() => onPageChange(page + 1)}
+          className="rounded-xl border border-stone-200 px-4 py-2 text-sm font-black text-stone-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Sau
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function Input({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
