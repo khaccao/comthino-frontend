@@ -53,6 +53,12 @@ const dueClass = (status?: string) => {
 };
 
 const inputClass = 'w-full rounded-xl border border-stone-300 bg-white px-3 py-3 text-sm font-bold text-stone-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100';
+const defaultFilters = () => ({
+  from: monthStart(),
+  to: todayKey(),
+  supplierId: '',
+  status: 'ALL',
+});
 
 export default function SupplierDebts() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -62,12 +68,7 @@ export default function SupplierDebts() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDebt, setEditingDebt] = useState<any | null>(null);
   const [formData, setFormData] = useState(emptyForm);
-  const [filters, setFilters] = useState({
-    from: monthStart(),
-    to: todayKey(),
-    supplierId: '',
-    status: 'ALL',
-  });
+  const [filters, setFilters] = useState(defaultFilters());
 
   const loadData = async (nextFilters = filters) => {
     try {
@@ -75,7 +76,7 @@ export default function SupplierDebts() {
       const [supplierData, debtData, summaryData] = await Promise.all([
         paymentApi.getSuppliers(),
         paymentApi.getSupplierDebts(nextFilters),
-        paymentApi.getSupplierDebtSummary(),
+        paymentApi.getSupplierDebtSummary(nextFilters),
       ]);
       setSuppliers(supplierData);
       setDebts(debtData);
@@ -97,6 +98,19 @@ export default function SupplierDebts() {
     remaining: debts.reduce((sum, item) => sum + Number(item.remainingAmount || 0), 0),
     due: debts.filter((item) => ['OVERDUE', 'DUE_TODAY', 'DUE_SOON'].includes(item.dueStatus)).length,
   }), [debts]);
+
+  const summaryTotals = useMemo(() => ({
+    amount: summary.reduce((sum, item) => sum + Number(item.totalDebt || 0), 0),
+    paid: summary.reduce((sum, item) => sum + Number(item.totalPaid || 0), 0),
+    remaining: summary.reduce((sum, item) => sum + Number(item.remainingDebt || 0), 0),
+    suppliers: summary.length,
+  }), [summary]);
+
+  const resetFilters = () => {
+    const nextFilters = defaultFilters();
+    setFilters(nextFilters);
+    loadData(nextFilters);
+  };
 
   const openModal = (item?: any) => {
     if (item) {
@@ -195,16 +209,42 @@ export default function SupplierDebts() {
               <option value="CANCELLED">Đã hủy</option>
             </select>
           </Field>
-          <button onClick={() => loadData()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-bold text-stone-700 hover:bg-white">
-            <RefreshCw className="h-4 w-4" />
-            Lọc
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => loadData()} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-bold text-stone-700 hover:bg-white">
+              <RefreshCw className="h-4 w-4" />
+              Lọc
+            </button>
+            <button onClick={resetFilters} className="inline-flex items-center justify-center rounded-xl border border-stone-200 bg-white px-3 py-3 text-sm font-bold text-stone-500 hover:bg-stone-50" title="Xóa lọc">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[420px_1fr]">
         <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-          <h2 className="font-serif text-2xl font-black text-stone-950">Tổng hợp theo NCC</h2>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-serif text-2xl font-black text-stone-950">Tổng hợp theo NCC</h2>
+              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-stone-400">
+                {summaryTotals.suppliers} NCC · còn nợ {formatCurrency(summaryTotals.remaining)}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 rounded-2xl bg-stone-50 p-3 text-xs">
+            <div>
+              <p className="font-black uppercase text-stone-400">Phát sinh</p>
+              <p className="mt-1 font-black text-stone-950">{formatCurrency(summaryTotals.amount)}</p>
+            </div>
+            <div>
+              <p className="font-black uppercase text-stone-400">Đã trả</p>
+              <p className="mt-1 font-black text-emerald-700">{formatCurrency(summaryTotals.paid)}</p>
+            </div>
+            <div>
+              <p className="font-black uppercase text-stone-400">Còn nợ</p>
+              <p className="mt-1 font-black text-red-600">{formatCurrency(summaryTotals.remaining)}</p>
+            </div>
+          </div>
           <div className="mt-4 max-h-[560px] space-y-3 overflow-y-auto pr-1">
             {summary.map(item => (
               <button
@@ -223,6 +263,11 @@ export default function SupplierDebts() {
                   </div>
                   <p className="font-black text-red-600">{formatCurrency(item.remainingDebt)}</p>
                 </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 rounded-xl bg-white/70 p-2 text-xs font-bold text-stone-500">
+                  <span>PS: {formatCurrency(item.totalDebt)}</span>
+                  <span>Trả: {formatCurrency(item.totalPaid)}</span>
+                  <span>Còn: {formatCurrency(item.remainingDebt)}</span>
+                </div>
                 {item.nearestDueDate && (
                   <div className="mt-3 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white px-2.5 py-1 text-xs font-bold text-amber-800">
                     <CalendarDays className="h-3 w-3" />
@@ -231,6 +276,11 @@ export default function SupplierDebts() {
                 )}
               </button>
             ))}
+            {!summary.length && (
+              <div className="rounded-2xl border border-dashed border-stone-200 bg-stone-50 p-6 text-center text-sm font-bold text-stone-500">
+                Không có công nợ NCC trong bộ lọc hiện tại.
+              </div>
+            )}
           </div>
         </div>
 
@@ -299,6 +349,13 @@ export default function SupplierDebts() {
                     </td>
                   </tr>
                 ))}
+                {!debts.length && (
+                  <tr>
+                    <td colSpan={9} className="p-8 text-center text-sm font-bold text-stone-500">
+                      Không có phiếu công nợ nào trong bộ lọc hiện tại.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
