@@ -579,21 +579,35 @@ export default function POS() {
     }
   };
 
+  const returnToTableMapAfterPayment = async (orderNo: string) => {
+    setMobilePaymentOrder(null);
+    setCurrentOrder(null);
+    setSelectedTable(null);
+    setSelectedCategory('ALL');
+    setSearchTerm('');
+    setMenuPage(1);
+    setActiveTab('pos');
+    setToast(`Đã thanh toán ${orderNo}. Đã quay về sơ đồ bàn.`);
+    await loadBootstrap();
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  };
+
   const payOrder = async () => {
     if (!currentOrder || !currentOrder.items?.length) return;
     setIsSaving(true);
     try {
-    const orderToPay = (await saveDirtyItemNotes()) || currentOrder;
-    const savedOrder = await saveOrderMeta(true);
-    const res = await adminApi.payPosOrder((savedOrder || orderToPay).Id, 'QR_OR_CASH');
-    if (res.success) {
-      setToast(`Đã thanh toán ${(savedOrder || orderToPay).OrderNo}.`);
-      setMobilePaymentOrder(null);
-      setCurrentOrder(null);
-      setSelectedTable(null);
-      await loadBootstrap();
-      if (activeTab === 'dashboard') await loadReports();
-    }
+      setToast('Đang hoàn tất thanh toán...');
+      const orderToPay = (await saveDirtyItemNotes()) || currentOrder;
+      const savedOrder = await saveOrderMeta(true);
+      const paidOrder = savedOrder || orderToPay;
+      const res = await adminApi.payPosOrder(paidOrder.Id, 'QR_OR_CASH');
+      if (res.success) {
+        await returnToTableMapAfterPayment(paidOrder.OrderNo);
+        if (revenueOtpVerified) await loadReports();
+      }
+    } catch (error: any) {
+      console.error(error);
+      setToast(error.response?.data?.message || 'Không hoàn tất được thanh toán.');
     } finally {
       setIsSaving(false);
     }
@@ -1040,9 +1054,10 @@ export default function POS() {
               <button
                 type="button"
                 onClick={payOrder}
-                className="rounded-xl bg-amber-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-amber-500"
+                disabled={isSaving}
+                className="rounded-xl bg-amber-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-stone-300"
               >
-                Đã nhận tiền - hoàn tất
+                {isSaving ? 'Đang hoàn tất...' : 'Đã nhận tiền - hoàn tất'}
               </button>
             </div>
           </div>
@@ -1415,9 +1430,13 @@ export default function POS() {
                     <QrCode className="h-4 w-4" />
                     Hiển thị hóa đơn QR
                   </button>
-                  <button onClick={payOrder} className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-amber-500">
+                  <button
+                    onClick={payOrder}
+                    disabled={!currentOrder.items?.length || isSaving}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-stone-300"
+                  >
                     <CreditCard className="h-4 w-4" />
-                    Hoàn tất thanh toán
+                    {isSaving ? 'Đang hoàn tất...' : 'Hoàn tất thanh toán'}
                   </button>
                 </div>
               </div>
