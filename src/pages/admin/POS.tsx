@@ -579,7 +579,7 @@ export default function POS() {
     }
   };
 
-  const returnToTableMapAfterPayment = async (orderNo: string) => {
+  const returnToTableMapAfterPayment = async (orderNo: string, warning?: string | null) => {
     setMobilePaymentOrder(null);
     setCurrentOrder(null);
     setSelectedTable(null);
@@ -587,7 +587,7 @@ export default function POS() {
     setSearchTerm('');
     setMenuPage(1);
     setActiveTab('pos');
-    setToast(`Đã thanh toán ${orderNo}. Đã quay về sơ đồ bàn.`);
+    setToast(warning ? `Đã thanh toán ${orderNo}. Đã quay về sơ đồ bàn. Cảnh báo kho: ${warning}` : `Đã thanh toán ${orderNo}. Đã quay về sơ đồ bàn.`);
     await loadBootstrap();
     requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
   };
@@ -602,7 +602,7 @@ export default function POS() {
       const paidOrder = savedOrder || orderToPay;
       const res = await adminApi.payPosOrder(paidOrder.Id, 'QR_OR_CASH');
       if (res.success) {
-        await returnToTableMapAfterPayment(paidOrder.OrderNo);
+        await returnToTableMapAfterPayment(paidOrder.OrderNo, res.stockWarning);
         if (revenueOtpVerified) await loadReports();
       }
     } catch (error: any) {
