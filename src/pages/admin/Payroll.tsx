@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
 import {
   AlertTriangle,
@@ -579,12 +579,12 @@ export default function Payroll() {
 
   const generatePayroll = async () => {
     try {
-      const res = await payrollApi.generateRun(runForm);
+      const res = await payrollApi.generateRun(runForm, payrollOtp);
       setToast(`Đã tính bảng lương ${res.item?.code || ''}.`);
       await loadRuns();
       setActiveTab('payroll');
     } catch (error: any) {
-      setToast(error?.response?.data?.message || 'Lỗi khi tạo bảng lương.');
+      if (isPayrollOtpError(error)) showPayrollOtpError(error);\r\n      else setToast(error?.response?.data?.message || 'Lỗi khi tạo bảng lương.');
     }
   };
 
@@ -1381,3 +1381,4 @@ function IconButton({ label, onClick, icon: Icon }: { label: string; onClick: ()
     </button>
   );
 }
+

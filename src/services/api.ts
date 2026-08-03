@@ -1,4 +1,4 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 import { useAuthStore } from '../utils/authStore';
 
 // Determine the API base URL.
@@ -292,7 +292,7 @@ export const payrollApi = {
   updateAttendance: (id: string, data: any) => api.put(`/admin/payroll/attendance/${id}`, data).then(unwrapData),
   deleteAttendance: (id: string) => api.delete(`/admin/payroll/attendance/${id}`).then(unwrapData),
   getRuns: (otp?: string) => api.get('/admin/payroll/runs', payrollOtpConfig(otp)).then(unwrapItems),
-  generateRun: (data: any) => api.post('/admin/payroll/runs/generate', data).then(unwrapData),
+  generateRun: (data: any, otp?: string) => api.post('/admin/payroll/runs/generate', data, payrollOtpConfig(otp)).then(unwrapData),
   deleteRun: (id: string) => api.delete(`/admin/payroll/runs/${id}`).then(unwrapData),
   getKpiLevels: (otp?: string) => api.get('/admin/payroll/kpi-levels', payrollOtpConfig(otp)).then(unwrapItems),
   createKpiLevel: (data: any) => api.post('/admin/payroll/kpi-levels', data).then(unwrapData),
@@ -334,3 +334,4 @@ export const kitchenInventoryApi = {
   updateRecipe: (id: string, data: any) => api.put(`/admin/kitchen-inventory/recipes/${id}`, data).then(unwrapData),
   deleteRecipe: (id: string) => api.delete(`/admin/kitchen-inventory/recipes/${id}`).then(unwrapData),
 };
+
