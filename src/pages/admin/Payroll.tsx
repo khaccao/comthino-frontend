@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type React from 'react';
 import {
   AlertTriangle,
@@ -584,7 +584,8 @@ export default function Payroll() {
       await loadRuns();
       setActiveTab('payroll');
     } catch (error: any) {
-      if (isPayrollOtpError(error)) showPayrollOtpError(error);\r\n      else setToast(error?.response?.data?.message || 'Lỗi khi tạo bảng lương.');
+      if (isPayrollOtpError(error)) showPayrollOtpError(error);
+      else setToast(error?.response?.data?.message || 'Lỗi khi tạo bảng lương.');
     }
   };
 

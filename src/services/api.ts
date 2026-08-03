@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import { useAuthStore } from '../utils/authStore';
 
 // Determine the API base URL.
