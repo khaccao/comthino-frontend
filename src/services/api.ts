@@ -270,39 +270,45 @@ export const paymentApi = {
 };
 
 // --- PAYROLL API ---
+const payrollOtpConfig = (otp?: string) => (otp ? { headers: { 'x-otp-code': otp } } : undefined);
+const payrollOtpParamsConfig = (params?: Record<string, any>, otp?: string) => ({
+  ...(params ? { params } : {}),
+  ...(otp ? { headers: { 'x-otp-code': otp } } : {}),
+});
+
 export const payrollApi = {
-  getBootstrap: () => api.get('/admin/payroll/bootstrap').then(unwrapData),
-  getShifts: () => api.get('/admin/payroll/shifts').then(unwrapItems),
+  getBootstrap: (otp?: string) => api.get('/admin/payroll/bootstrap', payrollOtpConfig(otp)).then(unwrapData),
+  getShifts: (otp?: string) => api.get('/admin/payroll/shifts', payrollOtpConfig(otp)).then(unwrapItems),
   createShift: (data: any) => api.post('/admin/payroll/shifts', data).then(unwrapData),
   updateShift: (id: string, data: any) => api.put(`/admin/payroll/shifts/${id}`, data).then(unwrapData),
   deleteShift: (id: string) => api.delete(`/admin/payroll/shifts/${id}`).then(unwrapData),
-  getEmployees: () => api.get('/admin/payroll/employees').then(unwrapItems),
+  getEmployees: (otp?: string) => api.get('/admin/payroll/employees', payrollOtpConfig(otp)).then(unwrapItems),
   createEmployee: (data: any) => api.post('/admin/payroll/employees', data).then(unwrapData),
   updateEmployee: (id: string, data: any) => api.put(`/admin/payroll/employees/${id}`, data).then(unwrapData),
   deleteEmployee: (id: string) => api.delete(`/admin/payroll/employees/${id}`).then(unwrapData),
-  getAttendances: (params?: { from?: string; to?: string }) =>
-    api.get('/admin/payroll/attendance', { params }).then(unwrapItems),
+  getAttendances: (params?: { from?: string; to?: string }, otp?: string) =>
+    api.get('/admin/payroll/attendance', payrollOtpParamsConfig(params, otp)).then(unwrapItems),
   createAttendance: (data: any) => api.post('/admin/payroll/attendance', data).then(unwrapData),
   updateAttendance: (id: string, data: any) => api.put(`/admin/payroll/attendance/${id}`, data).then(unwrapData),
   deleteAttendance: (id: string) => api.delete(`/admin/payroll/attendance/${id}`).then(unwrapData),
-  getRuns: () => api.get('/admin/payroll/runs').then(unwrapItems),
+  getRuns: (otp?: string) => api.get('/admin/payroll/runs', payrollOtpConfig(otp)).then(unwrapItems),
   generateRun: (data: any) => api.post('/admin/payroll/runs/generate', data).then(unwrapData),
   deleteRun: (id: string) => api.delete(`/admin/payroll/runs/${id}`).then(unwrapData),
-  getKpiLevels: () => api.get('/admin/payroll/kpi-levels').then(unwrapItems),
+  getKpiLevels: (otp?: string) => api.get('/admin/payroll/kpi-levels', payrollOtpConfig(otp)).then(unwrapItems),
   createKpiLevel: (data: any) => api.post('/admin/payroll/kpi-levels', data).then(unwrapData),
   updateKpiLevel: (id: string, data: any) => api.put(`/admin/payroll/kpi-levels/${id}`, data).then(unwrapData),
   deleteKpiLevel: (id: string) => api.delete(`/admin/payroll/kpi-levels/${id}`).then(unwrapData),
-  getKpiRecords: (params?: { from?: string; to?: string }) =>
-    api.get('/admin/payroll/kpi-records', { params }).then(unwrapItems),
+  getKpiRecords: (params?: { from?: string; to?: string }, otp?: string) =>
+    api.get('/admin/payroll/kpi-records', payrollOtpParamsConfig(params, otp)).then(unwrapItems),
   createKpiRecord: (data: any) => api.post('/admin/payroll/kpi-records', data).then(unwrapData),
   updateKpiRecord: (id: string, data: any) => api.put(`/admin/payroll/kpi-records/${id}`, data).then(unwrapData),
   deleteKpiRecord: (id: string) => api.delete(`/admin/payroll/kpi-records/${id}`).then(unwrapData),
-  getAdjustmentCategories: () => api.get('/admin/payroll/adjustment-categories').then(unwrapItems),
+  getAdjustmentCategories: (otp?: string) => api.get('/admin/payroll/adjustment-categories', payrollOtpConfig(otp)).then(unwrapItems),
   createAdjustmentCategory: (data: any) => api.post('/admin/payroll/adjustment-categories', data).then(unwrapData),
   updateAdjustmentCategory: (id: string, data: any) => api.put(`/admin/payroll/adjustment-categories/${id}`, data).then(unwrapData),
   deleteAdjustmentCategory: (id: string) => api.delete(`/admin/payroll/adjustment-categories/${id}`).then(unwrapData),
-  getAdjustments: (params?: { from?: string; to?: string }) =>
-    api.get('/admin/payroll/adjustments', { params }).then(unwrapItems),
+  getAdjustments: (params?: { from?: string; to?: string }, otp?: string) =>
+    api.get('/admin/payroll/adjustments', payrollOtpParamsConfig(params, otp)).then(unwrapItems),
   createAdjustment: (data: any) => api.post('/admin/payroll/adjustments', data).then(unwrapData),
   updateAdjustment: (id: string, data: any) => api.put(`/admin/payroll/adjustments/${id}`, data).then(unwrapData),
   deleteAdjustment: (id: string) => api.delete(`/admin/payroll/adjustments/${id}`).then(unwrapData),

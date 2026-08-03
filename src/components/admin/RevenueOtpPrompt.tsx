@@ -6,6 +6,7 @@ interface Props {
   description?: string;
   error?: string | null;
   loading?: boolean;
+  submitLabel?: string;
   onSubmit: (otp: string) => Promise<void> | void;
 }
 
@@ -14,6 +15,7 @@ export default function RevenueOtpPrompt({
   description = 'Nhập mã OTP 6 số từ Google Authenticator của tài khoản đang đăng nhập để xem doanh thu.',
   error,
   loading,
+  submitLabel = 'Xác minh và xem doanh thu',
   onSubmit,
 }: Props) {
   const [otp, setOtp] = useState('');
@@ -54,7 +56,7 @@ export default function RevenueOtpPrompt({
           className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-600 px-5 py-4 font-black text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ShieldCheck className="h-5 w-5" />
-          {loading ? 'Đang xác minh...' : 'Xác minh và xem doanh thu'}
+          {loading ? 'Đang xác minh...' : submitLabel}
         </button>
       </form>
     </div>

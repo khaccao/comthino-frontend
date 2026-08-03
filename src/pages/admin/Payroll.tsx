@@ -15,7 +15,9 @@ import {
   UserRound,
   Wallet,
 } from 'lucide-react';
+import RevenueOtpPrompt from '../../components/admin/RevenueOtpPrompt';
 import { payrollApi } from '../../services/api';
+import { useAuthStore } from '../../utils/authStore';
 
 type Shift = {
   id: string;
@@ -193,9 +195,15 @@ const dateInput = (value?: string) => {
 };
 
 export default function Payroll() {
+  const user = useAuthStore((state) => state.user);
+  const payrollOtpBypassed = Boolean(user?.isSystemAdmin || user?.role === 'SUPERADMIN' || user?.roles?.includes('SUPERADMIN'));
   const [activeTab, setActiveTab] = useState('overview');
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState('');
+  const [payrollOtp, setPayrollOtp] = useState('');
+  const [payrollOtpVerified, setPayrollOtpVerified] = useState(payrollOtpBypassed);
+  const [payrollOtpError, setPayrollOtpError] = useState<string | null>(null);
+  const [payrollOtpLoading, setPayrollOtpLoading] = useState(false);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [attendances, setAttendances] = useState<Attendance[]>([]);
@@ -297,12 +305,20 @@ export default function Payroll() {
     note: '',
   });
 
-  const loadBootstrap = async () => {
+  const isPayrollOtpError = (error: any) =>
+    ['INVALID_PAYROLL_OTP', 'INVALID_REVENUE_OTP', 'TWO_FACTOR_REQUIRED'].includes(error?.response?.data?.code);
+
+  const showPayrollOtpError = (error: any) => {
+    setPayrollOtpVerified(false);
+    setPayrollOtpError(error?.response?.data?.message || 'Vui lòng nhập OTP Google Authenticator để xem chấm công và lương.');
+  };
+
+  const loadBootstrap = async (otpCode = payrollOtp) => {
     setIsLoading(true);
     try {
       const [data, attendanceData] = await Promise.all([
-        payrollApi.getBootstrap(),
-        payrollApi.getAttendances({ from: attendanceFrom, to: attendanceTo }),
+        payrollApi.getBootstrap(otpCode),
+        payrollApi.getAttendances({ from: attendanceFrom, to: attendanceTo }, otpCode),
       ]);
       setShifts(data.shifts || []);
       setEmployees(data.employees || []);
@@ -312,43 +328,59 @@ export default function Payroll() {
       setKpiRecords(data.kpiRecords || []);
       setAdjustmentCategories(data.adjustmentCategories || []);
       setAdjustments(data.adjustments || []);
+      setPayrollOtp(otpCode);
+      setPayrollOtpVerified(true);
+      setPayrollOtpError(null);
+    } catch (error: any) {
+      if (isPayrollOtpError(error)) {
+        showPayrollOtpError(error);
+      } else {
+        setToast(error?.response?.data?.message || 'Không tải được dữ liệu chấm công và lương.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   const loadAttendances = async () => {
-    const data = await payrollApi.getAttendances({ from: attendanceFrom, to: attendanceTo });
+    const data = await payrollApi.getAttendances({ from: attendanceFrom, to: attendanceTo }, payrollOtp);
     setAttendances(data || []);
   };
 
   const loadRuns = async () => {
-    const data = await payrollApi.getRuns();
+    const data = await payrollApi.getRuns(payrollOtp);
     setRuns(data || []);
   };
 
   const loadKpiRecords = async () => {
-    const data = await payrollApi.getKpiRecords({ from: periodFrom, to: periodTo });
+    const data = await payrollApi.getKpiRecords({ from: periodFrom, to: periodTo }, payrollOtp);
     setKpiRecords(data || []);
   };
 
   const loadAdjustments = async () => {
-    const data = await payrollApi.getAdjustments({ from: periodFrom, to: periodTo });
+    const data = await payrollApi.getAdjustments({ from: periodFrom, to: periodTo }, payrollOtp);
     setAdjustments(data || []);
   };
 
   const loadRules = async () => {
     const [levels, categories] = await Promise.all([
-      payrollApi.getKpiLevels(),
-      payrollApi.getAdjustmentCategories(),
+      payrollApi.getKpiLevels(payrollOtp),
+      payrollApi.getAdjustmentCategories(payrollOtp),
     ]);
     setKpiLevels(levels || []);
     setAdjustmentCategories(categories || []);
   };
 
   useEffect(() => {
-    loadBootstrap();
-  }, []);
+    if (payrollOtpBypassed) loadBootstrap('');
+    else setIsLoading(false);
+  }, [payrollOtpBypassed]);
+
+  const submitPayrollOtp = async (otp: string) => {
+    setPayrollOtpLoading(true);
+    await loadBootstrap(otp);
+    setPayrollOtpLoading(false);
+  };
 
   const activeEmployees = employees.filter((item) => item.isActive);
   const activeShifts = shifts.filter((item) => item.isActive);
@@ -415,7 +447,7 @@ export default function Payroll() {
       else await payrollApi.createShift(payload);
       setToast('Đã lưu ca làm.');
       resetShift();
-      const data = await payrollApi.getShifts();
+      const data = await payrollApi.getShifts(payrollOtp);
       setShifts(data || []);
     } catch (error: any) {
       setToast(error?.response?.data?.message || 'Lỗi khi lưu ca làm.');
@@ -433,7 +465,7 @@ export default function Payroll() {
       else await payrollApi.createEmployee(payload);
       setToast('Đã lưu nhân viên.');
       resetEmployee();
-      const data = await payrollApi.getEmployees();
+      const data = await payrollApi.getEmployees(payrollOtp);
       setEmployees(data || []);
     } catch (error: any) {
       setToast(error?.response?.data?.message || 'Lỗi khi lưu nhân viên.');
@@ -458,7 +490,7 @@ export default function Payroll() {
       setAttendanceFrom(attendanceForm.workDate);
       setAttendanceTo(attendanceForm.workDate);
       resetAttendance();
-      const data = await payrollApi.getAttendances({ from: attendanceForm.workDate, to: attendanceForm.workDate });
+      const data = await payrollApi.getAttendances({ from: attendanceForm.workDate, to: attendanceForm.workDate }, payrollOtp);
       setAttendances(data || []);
     } catch (error: any) {
       setToast(error?.response?.data?.message || 'Lỗi khi lưu chấm công.');
@@ -501,7 +533,7 @@ export default function Payroll() {
       setPeriodFrom(kpiRecordForm.periodStart);
       setPeriodTo(kpiRecordForm.periodEnd);
       resetKpiRecord();
-      const data = await payrollApi.getKpiRecords({ from: kpiRecordForm.periodStart, to: kpiRecordForm.periodEnd });
+      const data = await payrollApi.getKpiRecords({ from: kpiRecordForm.periodStart, to: kpiRecordForm.periodEnd }, payrollOtp);
       setKpiRecords(data || []);
     } catch (error: any) {
       setToast(error?.response?.data?.message || 'Lỗi khi lưu KPI nhân viên.');
@@ -538,7 +570,7 @@ export default function Payroll() {
       setPeriodFrom(adjustmentForm.incidentDate);
       setPeriodTo(adjustmentForm.incidentDate);
       resetAdjustment();
-      const data = await payrollApi.getAdjustments({ from: adjustmentForm.incidentDate, to: adjustmentForm.incidentDate });
+      const data = await payrollApi.getAdjustments({ from: adjustmentForm.incidentDate, to: adjustmentForm.incidentDate }, payrollOtp);
       setAdjustments(data || []);
     } catch (error: any) {
       setToast(error?.response?.data?.message || 'Lỗi khi lưu thưởng/phạt.');
@@ -578,6 +610,19 @@ export default function Payroll() {
     CRITICAL: 'Nghiêm trọng',
   }[severity || ''] || severity || '-');
 
+  if (!payrollOtpVerified) {
+    return (
+      <RevenueOtpPrompt
+        title="Xác minh chấm công & lương"
+        description="Nhập mã OTP Google Authenticator để xem nhân viên, giờ công, KPI, thưởng phạt và bảng lương."
+        error={payrollOtpError}
+        loading={payrollOtpLoading || isLoading}
+        submitLabel="Xác minh và xem lương"
+        onSubmit={submitPayrollOtp}
+      />
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -602,7 +647,7 @@ export default function Payroll() {
             <h1 className="mt-1 font-serif text-3xl font-black text-stone-950">Chấm công & tính lương</h1>
             <p className="mt-1 text-sm text-stone-500">Quản lý ca làm, nhân viên, giờ đến/giờ về và tự động tính bảng lương theo giờ.</p>
           </div>
-          <button onClick={loadBootstrap} className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-extrabold text-stone-700 hover:bg-stone-50">
+          <button onClick={() => loadBootstrap()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-stone-200 px-4 py-2.5 text-sm font-extrabold text-stone-700 hover:bg-stone-50">
             <RefreshCw className="h-4 w-4" />
             Tải lại
           </button>
@@ -1001,7 +1046,7 @@ export default function Payroll() {
                       isActive: item.isActive,
                     });
                   }} className="flex-1 rounded-xl border border-stone-200 px-3 py-2 text-sm font-bold">Sửa</button>
-                  <button onClick={async () => { if (confirm('Ẩn nhân viên này?')) { await payrollApi.deleteEmployee(item.id); setEmployees(await payrollApi.getEmployees()); } }} className="rounded-xl border border-red-100 px-3 py-2 text-sm font-bold text-red-600">Ẩn</button>
+                  <button onClick={async () => { if (confirm('Ẩn nhân viên này?')) { await payrollApi.deleteEmployee(item.id); setEmployees(await payrollApi.getEmployees(payrollOtp)); } }} className="rounded-xl border border-red-100 px-3 py-2 text-sm font-bold text-red-600">Ẩn</button>
                 </div>
               </div>
             ))}
@@ -1037,7 +1082,7 @@ export default function Payroll() {
                 <p className="mt-2 min-h-10 text-sm text-stone-500">{item.description || 'Chưa có mô tả'}</p>
                 <div className="mt-4 flex gap-2">
                   <button onClick={() => { setEditingShiftId(item.id); setShiftForm({ code: item.code, name: item.name, startTime: item.startTime || '', endTime: item.endTime || '', hourlyRate: item.hourlyRate, description: item.description || '', isActive: item.isActive }); }} className="flex-1 rounded-xl border border-stone-200 px-3 py-2 text-sm font-bold">Sửa</button>
-                  <button onClick={async () => { if (confirm('Ẩn ca làm này?')) { await payrollApi.deleteShift(item.id); setShifts(await payrollApi.getShifts()); } }} className="rounded-xl border border-red-100 px-3 py-2 text-sm font-bold text-red-600">Ẩn</button>
+                  <button onClick={async () => { if (confirm('Ẩn ca làm này?')) { await payrollApi.deleteShift(item.id); setShifts(await payrollApi.getShifts(payrollOtp)); } }} className="rounded-xl border border-red-100 px-3 py-2 text-sm font-bold text-red-600">Ẩn</button>
                 </div>
               </div>
             ))}
