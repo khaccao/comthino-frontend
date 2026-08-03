@@ -56,6 +56,21 @@ type Recipe = {
   Note?: string;
 };
 
+type RecipeLineForm = {
+  id?: string;
+  ingredientId: string;
+  quantityPerItem: number;
+  wastePercent: number;
+  note: string;
+};
+
+type RecipeGroup = {
+  MenuItemId: string;
+  MenuItemCode?: string;
+  MenuItemName: string;
+  lines: Recipe[];
+};
+
 type StockRow = Ingredient & {
   InToday: number;
   OutToday: number;
@@ -107,7 +122,7 @@ export default function KitchenInventory() {
   const [data, setData] = useState<any>({});
   const [editingIngredientId, setEditingIngredientId] = useState('');
   const [editingUnitId, setEditingUnitId] = useState('');
-  const [editingRecipeId, setEditingRecipeId] = useState('');
+  const [editingRecipeMenuId, setEditingRecipeMenuId] = useState('');
   const [stockFilters, setStockFilters] = useState({ search: '', category: '', status: 'all' });
   const [stockPage, setStockPage] = useState(1);
   const [recipeFilters, setRecipeFilters] = useState({ search: '', menuItemId: '', ingredientId: '' });
@@ -129,11 +144,7 @@ export default function KitchenInventory() {
   const [unitForm, setUnitForm] = useState({ code: '', name: '', description: '', sortOrder: 0, isActive: true });
   const [recipeForm, setRecipeForm] = useState({
     menuItemId: '',
-    ingredientId: '',
-    quantityPerItem: 0,
-    wastePercent: 0,
-    note: '',
-    isActive: true,
+    lines: [{ ingredientId: '', quantityPerItem: 0, wastePercent: 0, note: '' }] as RecipeLineForm[],
   });
   const [entryForm, setEntryForm] = useState({
     entryDate: todayKey(),
@@ -197,6 +208,27 @@ export default function KitchenInventory() {
     });
   }, [recipes, recipeFilters]);
 
+  const recipeGroups = useMemo<RecipeGroup[]>(() => {
+    const map = new Map<string, RecipeGroup>();
+    filteredRecipes.forEach((item) => {
+      if (!map.has(item.MenuItemId)) {
+        map.set(item.MenuItemId, {
+          MenuItemId: item.MenuItemId,
+          MenuItemCode: item.MenuItemCode,
+          MenuItemName: item.MenuItemName,
+          lines: [],
+        });
+      }
+      map.get(item.MenuItemId)!.lines.push(item);
+    });
+    return Array.from(map.values())
+      .map((group) => ({
+        ...group,
+        lines: group.lines.sort((a, b) => a.IngredientName.localeCompare(b.IngredientName, 'vi')),
+      }))
+      .sort((a, b) => a.MenuItemName.localeCompare(b.MenuItemName, 'vi'));
+  }, [filteredRecipes]);
+
   const filteredIngredients = useMemo(() => {
     const keyword = normalizeText(ingredientFilters.search);
     return ingredients.filter((item) => {
@@ -216,7 +248,7 @@ export default function KitchenInventory() {
   }, [units, unitFilters.search]);
 
   const stockPageData = useMemo(() => paginate(filteredStock, stockPage, 10), [filteredStock, stockPage]);
-  const recipePageData = useMemo(() => paginate(filteredRecipes, recipePage, 10), [filteredRecipes, recipePage]);
+  const recipePageData = useMemo(() => paginate(recipeGroups, recipePage, 8), [recipeGroups, recipePage]);
   const ingredientPageData = useMemo(() => paginate(filteredIngredients, ingredientPage), [filteredIngredients, ingredientPage]);
   const unitPageData = useMemo(() => paginate(filteredUnits, unitPage), [filteredUnits, unitPage]);
 
@@ -243,8 +275,29 @@ export default function KitchenInventory() {
   };
 
   const saveRecipe = async () => {
-    await (editingRecipeId ? kitchenInventoryApi.updateRecipe(editingRecipeId, recipeForm) : kitchenInventoryApi.createRecipe(recipeForm));
-    setToast('Đã lưu định lượng món.');
+    if (!recipeForm.menuItemId) {
+      setToast('Vui lòng chọn món POS.');
+      return;
+    }
+    const lines = recipeForm.lines
+      .map((line) => ({
+        ingredientId: line.ingredientId,
+        quantityPerItem: Number(line.quantityPerItem || 0),
+        wastePercent: Number(line.wastePercent || 0),
+        note: line.note || '',
+      }))
+      .filter((line) => line.ingredientId && line.quantityPerItem > 0);
+    if (!lines.length) {
+      setToast('Vui lòng nhập ít nhất một nguyên liệu có định lượng lớn hơn 0.');
+      return;
+    }
+    const duplicateIngredient = lines.find((line, index) => lines.findIndex((item) => item.ingredientId === line.ingredientId) !== index);
+    if (duplicateIngredient) {
+      setToast('Một nguyên liệu chỉ nên nhập một lần trong cùng món.');
+      return;
+    }
+    await kitchenInventoryApi.saveRecipeSet(recipeForm.menuItemId, { lines });
+    setToast(`Đã lưu ${lines.length} nguyên liệu cho món.`);
     resetRecipe();
     await loadData();
   };
@@ -267,8 +320,48 @@ export default function KitchenInventory() {
   };
 
   const resetRecipe = () => {
-    setEditingRecipeId('');
-    setRecipeForm({ menuItemId: '', ingredientId: '', quantityPerItem: 0, wastePercent: 0, note: '', isActive: true });
+    setEditingRecipeMenuId('');
+    setRecipeForm({ menuItemId: '', lines: [{ ingredientId: '', quantityPerItem: 0, wastePercent: 0, note: '' }] });
+  };
+
+  const buildRecipeLinesForMenu = (menuItemId: string): RecipeLineForm[] => {
+    const currentLines = recipes.filter((item) => item.MenuItemId === menuItemId);
+    if (!currentLines.length) return [{ ingredientId: '', quantityPerItem: 0, wastePercent: 0, note: '' }];
+    return currentLines.map((item) => ({
+      id: item.Id,
+      ingredientId: item.IngredientId,
+      quantityPerItem: Number(item.QuantityPerItem || 0),
+      wastePercent: Number(item.WastePercent || 0),
+      note: item.Note || '',
+    }));
+  };
+
+  const selectRecipeMenu = (menuItemId: string) => {
+    setEditingRecipeMenuId(menuItemId);
+    setRecipeForm({ menuItemId, lines: buildRecipeLinesForMenu(menuItemId) });
+  };
+
+  const updateRecipeLine = (index: number, patch: Partial<RecipeLineForm>) => {
+    setRecipeForm((prev) => ({
+      ...prev,
+      lines: prev.lines.map((line, lineIndex) => lineIndex === index ? { ...line, ...patch } : line),
+    }));
+  };
+
+  const addRecipeLine = () => {
+    setRecipeForm((prev) => ({
+      ...prev,
+      lines: [...prev.lines, { ingredientId: '', quantityPerItem: 0, wastePercent: 0, note: '' }],
+    }));
+  };
+
+  const removeRecipeLine = (index: number) => {
+    setRecipeForm((prev) => ({
+      ...prev,
+      lines: prev.lines.length <= 1
+        ? [{ ingredientId: '', quantityPerItem: 0, wastePercent: 0, note: '' }]
+        : prev.lines.filter((_, lineIndex) => lineIndex !== index),
+    }));
   };
 
   const updateEntryLine = (index: number, patch: any) => {
@@ -363,7 +456,8 @@ export default function KitchenInventory() {
                     key={item.Id}
                     onClick={() => {
                       setActiveTab('recipes');
-                      setRecipeForm((prev) => ({ ...prev, menuItemId: item.Id }));
+                      setEditingRecipeMenuId(item.Id);
+                      setRecipeForm({ menuItemId: item.Id, lines: [{ ingredientId: '', quantityPerItem: 0, wastePercent: 0, note: '' }] });
                     }}
                     className="flex w-full items-center justify-between rounded-xl border border-stone-200 bg-white px-3 py-3 text-left hover:border-amber-300 hover:bg-amber-50"
                   >
@@ -464,24 +558,61 @@ export default function KitchenInventory() {
       )}
 
       {activeTab === 'recipes' && (
-        <div className="grid gap-4 xl:grid-cols-[400px_1fr]">
-          <Panel title={editingRecipeId ? 'Sửa định lượng' : 'Thêm định lượng món'}>
+        <div className="grid gap-4 xl:grid-cols-[520px_1fr]">
+          <Panel title={editingRecipeMenuId ? 'Sửa bộ định lượng món' : 'Thêm bộ định lượng món'}>
             <div className="space-y-3">
-              <Select label="Món POS" value={recipeForm.menuItemId} onChange={(v) => setRecipeForm({ ...recipeForm, menuItemId: v })}>
+              <Select label="Món POS" value={recipeForm.menuItemId} onChange={(v) => selectRecipeMenu(v)}>
                 <option value="">Chọn món</option>
                 {menuItems.map((item) => <option key={item.Id} value={item.Id}>{item.Name} ({item.Code})</option>)}
               </Select>
-              <Select label="Nguyên liệu trừ kho" value={recipeForm.ingredientId} onChange={(v) => setRecipeForm({ ...recipeForm, ingredientId: v })}>
-                <option value="">Chọn nguyên liệu</option>
-                {ingredients.map((item) => <option key={item.Id} value={item.Id}>{item.Name} ({item.UnitName})</option>)}
-              </Select>
-              <div className="grid grid-cols-2 gap-2">
-                <Input label="Định lượng/1 món" type="number" value={String(recipeForm.quantityPerItem)} onChange={(v) => setRecipeForm({ ...recipeForm, quantityPerItem: Number(v) })} />
-                <Input label="Hao hụt %" type="number" value={String(recipeForm.wastePercent)} onChange={(v) => setRecipeForm({ ...recipeForm, wastePercent: Number(v) })} />
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold leading-6 text-amber-900">
+                Nhập theo đơn vị tồn kho của nguyên liệu. Ví dụ nguyên liệu đơn vị kg thì 200g nhập là <b>0.2</b>; 1 bìa đậu nhập là <b>1</b>.
               </div>
-              <Input label="Ghi chú bếp" value={recipeForm.note} onChange={(v) => setRecipeForm({ ...recipeForm, note: v })} />
+              <div className="space-y-3">
+                {recipeForm.lines.map((line, index) => {
+                  const ingredient = ingredients.find((item) => item.Id === line.ingredientId);
+                  return (
+                    <div key={`${line.id || 'new'}-${index}`} className="rounded-2xl border border-stone-200 bg-stone-50 p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <b className="text-sm text-stone-900">Nguyên liệu {index + 1}</b>
+                        <button
+                          type="button"
+                          onClick={() => removeRecipeLine(index)}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-red-100 bg-white text-red-600 hover:bg-red-50"
+                          title="Xóa nguyên liệu"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <Select label="Nguyên liệu trừ kho" value={line.ingredientId} onChange={(v) => updateRecipeLine(index, { ingredientId: v })}>
+                        <option value="">Chọn nguyên liệu</option>
+                        {ingredients.map((item) => <option key={item.Id} value={item.Id}>{item.Name} ({item.UnitName})</option>)}
+                      </Select>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <Input
+                          label={`Định lượng/1 món ${ingredient?.UnitName ? `(${ingredient.UnitName})` : ''}`}
+                          type="number"
+                          value={String(line.quantityPerItem)}
+                          onChange={(v) => updateRecipeLine(index, { quantityPerItem: Number(v) })}
+                        />
+                        <Input
+                          label="Hao hụt %"
+                          type="number"
+                          value={String(line.wastePercent)}
+                          onChange={(v) => updateRecipeLine(index, { wastePercent: Number(v) })}
+                        />
+                      </div>
+                      <Input label="Ghi chú riêng cho nguyên liệu" value={line.note} onChange={(v) => updateRecipeLine(index, { note: v })} />
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={addRecipeLine} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 px-4 py-3 text-sm font-black hover:bg-stone-50">
+                <Plus className="h-4 w-4" />
+                Thêm nguyên liệu cho món
+              </button>
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={saveRecipe} className="rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white">Lưu định lượng</button>
+                <button onClick={saveRecipe} className="rounded-xl bg-amber-600 px-4 py-3 text-sm font-black text-white">Lưu bộ định lượng</button>
                 <button onClick={resetRecipe} className="rounded-xl border border-stone-200 px-4 py-3 text-sm font-black">Làm mới</button>
               </div>
             </div>
@@ -504,27 +635,52 @@ export default function KitchenInventory() {
               </Select>
             </FilterGrid>
             <div className="grid gap-2">
-              {recipePageData.items.map((item) => (
-                <div key={item.Id} className="rounded-2xl border border-stone-200 p-4">
+              {recipePageData.items.map((group) => (
+                <div key={group.MenuItemId} className="rounded-2xl border border-stone-200 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-wide text-amber-700">{item.MenuItemCode}</p>
-                      <h3 className="text-lg font-black text-stone-950">{item.MenuItemName}</h3>
-                      <p className="text-sm text-stone-500">{item.IngredientName}: <b>{qty(item.QuantityPerItem)} {item.UnitName}</b>/món · hao hụt {qty(item.WastePercent)}%</p>
+                      <p className="text-xs font-black uppercase tracking-wide text-amber-700">{group.MenuItemCode}</p>
+                      <h3 className="text-lg font-black text-stone-950">{group.MenuItemName}</h3>
+                      <p className="text-sm text-stone-500">{group.lines.length} nguyên liệu sẽ tự trừ kho khi bán món này.</p>
                     </div>
                     <div className="flex gap-2">
                       <IconButton icon={Edit2} label="Sửa" onClick={() => {
-                        setEditingRecipeId(item.Id);
-                        setRecipeForm({ menuItemId: item.MenuItemId, ingredientId: item.IngredientId, quantityPerItem: item.QuantityPerItem, wastePercent: item.WastePercent, note: item.Note || '', isActive: true });
+                        setEditingRecipeMenuId(group.MenuItemId);
+                        setRecipeForm({
+                          menuItemId: group.MenuItemId,
+                          lines: buildRecipeLinesForMenu(group.MenuItemId),
+                        });
                       }} />
-                      <IconButton icon={Trash2} label="Ẩn" onClick={async () => { if (confirm('Ẩn định lượng này?')) { await kitchenInventoryApi.deleteRecipe(item.Id); await loadData(); } }} />
+                      <IconButton icon={Trash2} label="Ẩn" onClick={async () => {
+                        if (confirm(`Ẩn toàn bộ định lượng của món ${group.MenuItemName}?`)) {
+                          await Promise.all(group.lines.map((item) => kitchenInventoryApi.deleteRecipe(item.Id)));
+                          await loadData();
+                        }
+                      }} />
                     </div>
+                  </div>
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="min-w-[640px] w-full text-left text-sm">
+                      <thead className="bg-stone-50 text-xs uppercase text-stone-500">
+                        <tr><th className="p-2">Nguyên liệu</th><th>Định lượng/1 món</th><th>Hao hụt</th><th>Ghi chú</th></tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-100">
+                        {group.lines.map((line) => (
+                          <tr key={line.Id}>
+                            <td className="p-2 font-black">{line.IngredientName}</td>
+                            <td><b>{qty(line.QuantityPerItem)} {line.UnitName}</b></td>
+                            <td>{qty(line.WastePercent)}%</td>
+                            <td className="text-stone-500">{line.Note || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               ))}
             </div>
             {!filteredRecipes.length && <EmptyState text="Không có dòng định lượng nào khớp bộ lọc." />}
-            <Pagination page={recipePageData.page} pageCount={recipePageData.pageCount} total={filteredRecipes.length} onPageChange={setRecipePage} />
+            <Pagination page={recipePageData.page} pageCount={recipePageData.pageCount} total={recipeGroups.length} onPageChange={setRecipePage} />
           </Panel>
         </div>
       )}

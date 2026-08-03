@@ -331,6 +331,7 @@ export const kitchenInventoryApi = {
   deleteIngredient: (id: string) => api.delete(`/admin/kitchen-inventory/ingredients/${id}`).then(unwrapData),
   createStockEntry: (data: any) => api.post('/admin/kitchen-inventory/stock-entries', data).then(unwrapData),
   createRecipe: (data: any) => api.post('/admin/kitchen-inventory/recipes', data).then(unwrapData),
+  saveRecipeSet: (menuItemId: string, data: any) => api.put(`/admin/kitchen-inventory/recipes/by-menu/${menuItemId}`, data).then(unwrapData),
   updateRecipe: (id: string, data: any) => api.put(`/admin/kitchen-inventory/recipes/${id}`, data).then(unwrapData),
   deleteRecipe: (id: string) => api.delete(`/admin/kitchen-inventory/recipes/${id}`).then(unwrapData),
 };
