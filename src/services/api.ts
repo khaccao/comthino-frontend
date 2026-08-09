@@ -252,6 +252,7 @@ export const paymentApi = {
   getSupplierDebts: (params?: any) => api.get('/admin/supplier-debts', { params }).then(unwrapItems),
   getSupplierDebtSummary: (params?: any) => api.get('/admin/supplier-debts/summary', { params }).then(unwrapItems),
   createSupplierDebt: (data: any) => api.post('/admin/supplier-debts', data).then(unwrapData),
+  paySupplierDebt: (data: any) => api.post('/admin/supplier-debts/pay', data).then(unwrapData),
   updateSupplierDebt: (id: string, data: any) => api.put(`/admin/supplier-debts/${id}`, data).then(unwrapData),
   deleteSupplierDebt: (id: string) => api.delete(`/admin/supplier-debts/${id}`).then(unwrapData),
   // Payment Requests
