@@ -132,12 +132,21 @@ const formatVnd = (value: number | string | null | undefined) =>
 
 const formatDateTime = (value?: string) => {
   if (!value) return '-';
-  return new Date(value).toLocaleString('vi-VN', {
+  const raw = String(value).trim();
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+  if (match) {
+    const [, year, month, day, hour, minute] = match;
+    return `${hour}:${minute} ${day}/${month}/${year}`;
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('vi-VN', {
     hour: '2-digit',
     minute: '2-digit',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: 'Asia/Ho_Chi_Minh',
   });
 };
 
