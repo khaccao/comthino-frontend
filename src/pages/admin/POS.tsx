@@ -150,6 +150,17 @@ const formatDateTime = (value?: string) => {
   });
 };
 
+const formatVietnamPrintTime = (value: Date = new Date()) =>
+  new Intl.DateTimeFormat('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour12: false,
+  }).format(value).replace(',', '');
+
 const formatShortDate = (value: string) =>
   new Date(`${value}T00:00:00`).toLocaleDateString('vi-VN', {
     day: 'numeric',
@@ -649,7 +660,7 @@ export default function POS() {
     let html = template?.Content || '';
     html = replaceToken(html, '{{OrderNo}}', currentOrder.OrderNo);
     html = replaceToken(html, '{{TableName}}', currentOrder.TableName);
-    html = replaceToken(html, '{{CreatedAt}}', formatDateTime(currentOrder.CreatedAt));
+    html = replaceToken(html, '{{CreatedAt}}', formatVietnamPrintTime());
     html = replaceToken(html, '{{Items}}', rows);
     html = replaceToken(html, '{{OrderNote}}', currentOrder.Note || '');
     html = replaceToken(html, '{{SubTotal}}', formatVnd(currentOrder.SubTotal));
