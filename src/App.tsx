@@ -1,6 +1,9 @@
 import { Navigate, Route, Routes, BrowserRouter } from 'react-router-dom';
 import PublicLayout from './layouts/PublicLayout';
 import AdminLayout from './layouts/AdminLayout';
+import AdminRouteGuard from './components/AdminRouteGuard';
+import { getFirstAllowedAdminPath } from './utils/adminPermissions';
+import { useAuthStore } from './utils/authStore';
 
 // Public pages
 import HomePage from './pages/HomePage';
@@ -47,6 +50,12 @@ import PaymentApprovals from './pages/admin/PaymentApprovals';
 import CashReports from './pages/admin/CashReports';
 import Payroll from './pages/admin/Payroll';
 import KitchenInventory from './pages/admin/KitchenInventory';
+
+function AdminIndexRedirect() {
+  const { user } = useAuthStore();
+  return <Navigate to={getFirstAllowedAdminPath(user)} replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -87,45 +96,45 @@ export default function App() {
 
         {/* ADMIN SYSTEM BACK-OFFICE ROUTES */}
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="site-settings" element={<SiteSettings />} />
-          <Route path="navigation-items" element={<NavigationItems />} />
-          <Route path="banners" element={<Banners />} />
-          <Route path="home-sections" element={<HomeSections />} />
-          <Route path="menu-categories" element={<MenuCategories />} />
-          <Route path="menu-items" element={<MenuItems />} />
-          <Route path="promotions" element={<Promotions />} />
-          <Route path="gallery" element={<Gallery />} />
-          <Route path="testimonials" element={<Testimonials />} />
-          <Route path="contact-messages" element={<ContactMessages />} />
-          <Route path="media" element={<MediaManager />} />
-          <Route path="blog/categories" element={<BlogCategories />} />
-          <Route path="blog/posts" element={<BlogPosts />} />
-          <Route path="blog/posts/new" element={<BlogPostEditor />} />
-          <Route path="blog/posts/:id/edit" element={<BlogPostEditor />} />
+          <Route index element={<AdminIndexRedirect />} />
+          <Route path="dashboard" element={<AdminRouteGuard menuCode="DASHBOARD"><Dashboard /></AdminRouteGuard>} />
+          <Route path="site-settings" element={<AdminRouteGuard menuCode="SYSTEM_CONFIG"><SiteSettings /></AdminRouteGuard>} />
+          <Route path="navigation-items" element={<AdminRouteGuard menuCode="SYSTEM_CONFIG"><NavigationItems /></AdminRouteGuard>} />
+          <Route path="banners" element={<AdminRouteGuard menuCode="SYSTEM_CONFIG"><Banners /></AdminRouteGuard>} />
+          <Route path="home-sections" element={<AdminRouteGuard menuCode="SYSTEM_CONFIG"><HomeSections /></AdminRouteGuard>} />
+          <Route path="menu-categories" element={<AdminRouteGuard menuCode="DISH_CATEGORY"><MenuCategories /></AdminRouteGuard>} />
+          <Route path="menu-items" element={<AdminRouteGuard menuCode="MENU_MANAGEMENT"><MenuItems /></AdminRouteGuard>} />
+          <Route path="promotions" element={<AdminRouteGuard menuCode="SYSTEM_CONFIG"><Promotions /></AdminRouteGuard>} />
+          <Route path="gallery" element={<AdminRouteGuard menuCode="SYSTEM_CONFIG"><Gallery /></AdminRouteGuard>} />
+          <Route path="testimonials" element={<AdminRouteGuard menuCode="SYSTEM_CONFIG"><Testimonials /></AdminRouteGuard>} />
+          <Route path="contact-messages" element={<AdminRouteGuard menuCode="SYSTEM_CONFIG"><ContactMessages /></AdminRouteGuard>} />
+          <Route path="media" element={<AdminRouteGuard menuCode="SYSTEM_CONFIG"><MediaManager /></AdminRouteGuard>} />
+          <Route path="blog/categories" element={<AdminRouteGuard menuCode="BLOG_CATEGORY"><BlogCategories /></AdminRouteGuard>} />
+          <Route path="blog/posts" element={<AdminRouteGuard menuCode="BLOG_POST"><BlogPosts /></AdminRouteGuard>} />
+          <Route path="blog/posts/new" element={<AdminRouteGuard menuCode="BLOG_POST" permissionCode="CREATE"><BlogPostEditor /></AdminRouteGuard>} />
+          <Route path="blog/posts/:id/edit" element={<AdminRouteGuard menuCode="BLOG_POST" permissionCode="EDIT"><BlogPostEditor /></AdminRouteGuard>} />
           {/* SEO Routes */}
-          <Route path="seo-pages" element={<SeoPages />} />
-          <Route path="seo-pages/new" element={<SeoPageEditor />} />
-          <Route path="seo-pages/:id/edit" element={<SeoPageEditor />} />
-          <Route path="faqs" element={<FAQsManager />} />
-          <Route path="reviews" element={<ReviewsManager />} />
-          <Route path="pos" element={<POS />} />
-          <Route path="pos/runner" element={<PosRunner />} />
-          <Route path="users" element={<Users />} />
-          <Route path="roles" element={<Roles />} />
-          <Route path="permissions" element={<RolePermissionsMatrix />} />
-          <Route path="audit-logs" element={<AuditLogs />} />
-          <Route path="payments/requests" element={<PaymentRequests />} />
-          <Route path="payments/vouchers" element={<PaymentVouchers />} />
-          <Route path="payments/dashboard" element={<PaymentDashboard />} />
-          <Route path="payments/approvals" element={<PaymentApprovals />} />
-          <Route path="cash/accounts" element={<CashAccounts />} />
-          <Route path="reports/cash" element={<CashReports />} />
-          <Route path="suppliers" element={<Suppliers />} />
-          <Route path="suppliers/debt" element={<SupplierDebts />} />
-          <Route path="payroll" element={<Payroll />} />
-          <Route path="kitchen-inventory" element={<KitchenInventory />} />
+          <Route path="seo-pages" element={<AdminRouteGuard menuCode="SEO_PAGE"><SeoPages /></AdminRouteGuard>} />
+          <Route path="seo-pages/new" element={<AdminRouteGuard menuCode="SEO_PAGE" permissionCode="CREATE"><SeoPageEditor /></AdminRouteGuard>} />
+          <Route path="seo-pages/:id/edit" element={<AdminRouteGuard menuCode="SEO_PAGE" permissionCode="EDIT"><SeoPageEditor /></AdminRouteGuard>} />
+          <Route path="faqs" element={<AdminRouteGuard menuCode="FAQ_MANAGEMENT"><FAQsManager /></AdminRouteGuard>} />
+          <Route path="reviews" element={<AdminRouteGuard menuCode="REVIEW_MANAGEMENT"><ReviewsManager /></AdminRouteGuard>} />
+          <Route path="pos" element={<AdminRouteGuard menuCode="ORDER_POS"><POS /></AdminRouteGuard>} />
+          <Route path="pos/runner" element={<AdminRouteGuard menuCode="POS_RUNNER"><PosRunner /></AdminRouteGuard>} />
+          <Route path="users" element={<AdminRouteGuard menuCode="USER_MANAGEMENT"><Users /></AdminRouteGuard>} />
+          <Route path="roles" element={<AdminRouteGuard menuCode="ROLE_MANAGEMENT"><Roles /></AdminRouteGuard>} />
+          <Route path="permissions" element={<AdminRouteGuard menuCode="PERMISSION_MANAGEMENT"><RolePermissionsMatrix /></AdminRouteGuard>} />
+          <Route path="audit-logs" element={<AdminRouteGuard menuCode="AUDIT_LOG"><AuditLogs /></AdminRouteGuard>} />
+          <Route path="payments/requests" element={<AdminRouteGuard menuCode="PAYMENT_REQUEST"><PaymentRequests /></AdminRouteGuard>} />
+          <Route path="payments/vouchers" element={<AdminRouteGuard menuCode="PAYMENT_VOUCHER"><PaymentVouchers /></AdminRouteGuard>} />
+          <Route path="payments/dashboard" element={<AdminRouteGuard menuCode="CASH_BOOK"><PaymentDashboard /></AdminRouteGuard>} />
+          <Route path="payments/approvals" element={<AdminRouteGuard menuCode="PAYMENT_REQUEST_APPROVAL"><PaymentApprovals /></AdminRouteGuard>} />
+          <Route path="cash/accounts" element={<AdminRouteGuard menuCode="BANK_ACCOUNT"><CashAccounts /></AdminRouteGuard>} />
+          <Route path="reports/cash" element={<AdminRouteGuard menuCode="CASH_REPORT"><CashReports /></AdminRouteGuard>} />
+          <Route path="suppliers" element={<AdminRouteGuard menuCode="SUPPLIER_CATEGORY"><Suppliers /></AdminRouteGuard>} />
+          <Route path="suppliers/debt" element={<AdminRouteGuard menuCode="SUPPLIER_DEBT"><SupplierDebts /></AdminRouteGuard>} />
+          <Route path="payroll" element={<AdminRouteGuard menuCode="PAYROLL"><Payroll /></AdminRouteGuard>} />
+          <Route path="kitchen-inventory" element={<AdminRouteGuard menuCode="KITCHEN_INVENTORY"><KitchenInventory /></AdminRouteGuard>} />
         </Route>
 
         {/* CATCH ALL FALLBACK */}

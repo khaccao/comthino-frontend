@@ -16,7 +16,7 @@ export default function Login() {
   const location = useLocation();
 
   // Redirect if already logged in
-  const from = (location.state as any)?.from?.pathname || '/admin/dashboard';
+  const from = (location.state as any)?.from?.pathname || '/admin';
   useEffect(() => {
     if (isAuthenticated) {
       navigate(from, { replace: true });

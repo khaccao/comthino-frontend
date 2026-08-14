@@ -12,7 +12,7 @@ import {
 
 interface NavGroup {
   label: string;
-  items: { label: string; path: string; icon: React.ElementType; menuCode?: string }[];
+  items: { label: string; path: string; icon: React.ElementType; menuCode?: string; permissionCode?: string }[];
 }
 
 interface SupplierDueAlert {
@@ -28,7 +28,7 @@ const formatMoney = (value: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value || 0));
 
 export default function AdminLayout() {
-  const { isAuthenticated, user, logout, canView } = useAuthStore();
+  const { isAuthenticated, user, logout, canView, hasPermission } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
@@ -113,12 +113,12 @@ export default function AdminLayout() {
     {
       label: 'NỘI DUNG',
       items: [
-        { label: 'Danh mục tin', path: '/admin/blog/categories', icon: Newspaper },
-        { label: 'Bài viết', path: '/admin/blog/posts', icon: Newspaper },
-        { label: 'Viết bài mới', path: '/admin/blog/posts/new', icon: PenLine },
-        { label: 'SEO Landing Pages', path: '/admin/seo-pages', icon: Globe },
-        { label: 'FAQs', path: '/admin/faqs', icon: Sparkles },
-        { label: 'Reviews', path: '/admin/reviews', icon: MessageSquare },
+        { label: 'Danh mục tin', path: '/admin/blog/categories', icon: Newspaper, menuCode: 'BLOG_CATEGORY' },
+        { label: 'Bài viết', path: '/admin/blog/posts', icon: Newspaper, menuCode: 'BLOG_POST' },
+        { label: 'Viết bài mới', path: '/admin/blog/posts/new', icon: PenLine, menuCode: 'BLOG_POST', permissionCode: 'CREATE' },
+        { label: 'SEO Landing Pages', path: '/admin/seo-pages', icon: Globe, menuCode: 'SEO_PAGE' },
+        { label: 'FAQs', path: '/admin/faqs', icon: Sparkles, menuCode: 'FAQ_MANAGEMENT' },
+        { label: 'Reviews', path: '/admin/reviews', icon: MessageSquare, menuCode: 'REVIEW_MANAGEMENT' },
       ],
     },
     {
@@ -153,7 +153,7 @@ export default function AdminLayout() {
 
   const filteredGroups = navGroups.map(group => ({
     ...group,
-    items: group.items.filter(item => !item.menuCode || canView(item.menuCode)),
+    items: group.items.filter(item => !item.menuCode || hasPermission(item.menuCode, item.permissionCode || 'VIEW')),
   })).filter(group => group.items.length > 0);
 
   const isSingleGroup = (group: NavGroup) => group.label === 'TỔNG QUAN';
