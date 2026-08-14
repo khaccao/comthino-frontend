@@ -85,6 +85,7 @@ export default function AdminLayout() {
       items: [
         { label: 'Thống kê chung', path: '/admin/dashboard', icon: LayoutDashboard, menuCode: 'DASHBOARD' },
         { label: 'Máy POS', path: '/admin/pos', icon: Monitor, menuCode: 'ORDER_POS' },
+        { label: 'Chạy bàn', path: '/admin/pos/runner', icon: Utensils, menuCode: 'ORDER_POS' },
         { label: 'Kho bếp & định lượng', path: '/admin/kitchen-inventory', icon: Package, menuCode: 'KITCHEN_INVENTORY' },
       ],
     },

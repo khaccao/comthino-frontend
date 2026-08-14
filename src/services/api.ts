@@ -175,6 +175,7 @@ export const adminApi = {
 
   // POS
   getPosBootstrap: () => api.get('/admin/pos/bootstrap').then(res => res.data),
+  getPosRunnerOrders: () => api.get('/admin/pos/runner').then(res => res.data),
   upsertPosTable: (data: any, id?: string) =>
     (id ? api.put(`/admin/pos/tables/${id}`, data) : api.post('/admin/pos/tables', data)).then(res => res.data),
   updatePosTableLayout: (tables: any[]) => api.put('/admin/pos/tables/layout', { tables }).then(res => res.data),

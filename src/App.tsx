@@ -32,6 +32,7 @@ import SeoPageEditor from './pages/admin/SeoPageEditor';
 import FAQsManager from './pages/admin/FAQsManager';
 import ReviewsManager from './pages/admin/ReviewsManager';
 import POS from './pages/admin/POS';
+import PosRunner from './pages/admin/PosRunner';
 import Users from './pages/admin/Users';
 import Roles from './pages/admin/Roles';
 import RolePermissionsMatrix from './pages/admin/RolePermissionsMatrix';
@@ -110,6 +111,7 @@ export default function App() {
           <Route path="faqs" element={<FAQsManager />} />
           <Route path="reviews" element={<ReviewsManager />} />
           <Route path="pos" element={<POS />} />
+          <Route path="pos/runner" element={<PosRunner />} />
           <Route path="users" element={<Users />} />
           <Route path="roles" element={<Roles />} />
           <Route path="permissions" element={<RolePermissionsMatrix />} />
