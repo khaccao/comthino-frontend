@@ -178,6 +178,13 @@ const calcGrowth = (current?: number, previous?: number) => {
 const formatGrowth = (value: number) => `${value >= 0 ? '+' : ''}${value.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}% so với ngày trước`;
 
 const replaceToken = (content: string, token: string, value: string) => content.split(token).join(value);
+const escapeHtml = (value: string | number | null | undefined) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 const isOrderInUse = (order?: PosOrder | null) =>
   Boolean(order && order.Status !== 'PAID' && (order.Status === 'ORDERED' || Number(order.ItemCount || 0) > 0 || Number(order.items?.length || 0) > 0));
@@ -645,24 +652,46 @@ export default function POS() {
     }
   };
 
-  const printOrder = (type: 'KITCHEN' | 'TEMPORARY' | 'PAYMENT') => {
+  const printOrder = async (type: 'KITCHEN' | 'TEMPORARY' | 'PAYMENT') => {
     if (!currentOrder) return;
+    const printWindow = window.open('', '_blank', 'width=420,height=720');
+    if (!printWindow) return;
+    printWindow.document.write('<html><body style="font-family:Arial,sans-serif;padding:16px">Đang chuẩn bị phiếu in...</body></html>');
+
+    let printContext = { printTime: '', orderQueueNo: 0 };
+    try {
+      const res = await adminApi.getPosPrintContext(currentOrder.Id);
+      printContext = res.data || printContext;
+      if (!printContext.printTime) throw new Error('Missing server print time');
+    } catch (error) {
+      printWindow.close();
+      alert('Không lấy được giờ in chuẩn Việt Nam từ server. Vui lòng thử in lại.');
+      return;
+    }
+
     const template = templates.find((item) => item.Code === type);
     const rows = (currentOrder.items || [])
       .map((item) => {
         const note = itemNoteDrafts[item.Id] ?? item.Note ?? '';
         if (type === 'KITCHEN') {
-          return `<tr><td>${item.Name}</td><td>${item.Quantity}</td><td>${note || ''}</td></tr>`;
+          return `<tr class="kitchen-row"><td class="kitchen-item">${escapeHtml(item.Name)}</td><td class="kitchen-qty">${escapeHtml(item.Quantity)}</td><td class="kitchen-note">${note ? `<strong>${escapeHtml(note)}</strong>` : ''}</td></tr>`;
         }
-        return `<tr><td>${item.Name}${note ? `<br><small>${note}</small>` : ''}</td><td>${item.Quantity}</td><td>${formatVnd(item.UnitPrice)}</td><td>${formatVnd(Number(item.UnitPrice) * Number(item.Quantity))}</td></tr>`;
+        return `<tr><td>${escapeHtml(item.Name)}${note ? `<br><small>${escapeHtml(note)}</small>` : ''}</td><td>${escapeHtml(item.Quantity)}</td><td>${formatVnd(item.UnitPrice)}</td><td>${formatVnd(Number(item.UnitPrice) * Number(item.Quantity))}</td></tr>`;
       })
       .join('');
     let html = template?.Content || '';
-    html = replaceToken(html, '{{OrderNo}}', currentOrder.OrderNo);
-    html = replaceToken(html, '{{TableName}}', currentOrder.TableName);
-    html = replaceToken(html, '{{CreatedAt}}', formatVietnamPrintTime());
+    const queueNo = Number(printContext.orderQueueNo || 0);
+    const kitchenBanner = type === 'KITCHEN'
+      ? `<div class="kitchen-priority"><div>ĐƠN #${queueNo || '-'}</div><div>BÀN ${escapeHtml(currentOrder.TableName)}</div></div>`
+      : '';
+    html = replaceToken(html, '{{OrderNo}}', escapeHtml(currentOrder.OrderNo));
+    html = replaceToken(html, '{{TableName}}', escapeHtml(currentOrder.TableName));
+    html = replaceToken(html, '{{OrderQueueNo}}', String(queueNo || '-'));
+    html = replaceToken(html, '{{QueueNo}}', String(queueNo || '-'));
+    html = replaceToken(html, '{{PrintTime}}', escapeHtml(printContext.printTime));
+    html = replaceToken(html, '{{CreatedAt}}', escapeHtml(printContext.printTime));
     html = replaceToken(html, '{{Items}}', rows);
-    html = replaceToken(html, '{{OrderNote}}', currentOrder.Note || '');
+    html = replaceToken(html, '{{OrderNote}}', currentOrder.Note ? `<strong class="order-note-text">${escapeHtml(currentOrder.Note)}</strong>` : '');
     html = replaceToken(html, '{{SubTotal}}', formatVnd(currentOrder.SubTotal));
     html = replaceToken(html, '{{ServiceCharge}}', formatVnd(currentOrder.ServiceCharge));
     html = replaceToken(html, '{{VatAmount}}', formatVnd(currentOrder.VatAmount));
@@ -673,8 +702,12 @@ export default function POS() {
       '{{PaymentQrUrl}}',
       buildVietQrUrl(paymentForm, currentOrder.TotalAmount, currentOrder.OrderNo) || currentOrder.PaymentQrUrl || '',
     );
-    const printWindow = window.open('', '_blank', 'width=420,height=720');
-    if (!printWindow) return;
+    if (type === 'KITCHEN') {
+      html = html.includes('</header>')
+        ? html.replace('</header>', `${kitchenBanner}</header>`)
+        : `${kitchenBanner}${html}`;
+    }
+    printWindow.document.open();
     printWindow.document.write(`
       <html><head><title>${currentOrder.OrderNo}</title>
       <style>
@@ -685,6 +718,11 @@ export default function POS() {
         table{width:100%;border-collapse:collapse;margin-top:4mm;font-size:11px}
         th,td{border-bottom:1px dashed #999;padding:2mm 0;text-align:left}
         th:nth-child(n+2),td:nth-child(n+2){text-align:right}
+        .kitchen-priority{margin:2mm 0 1mm;padding:2mm;border:2px solid #111;text-align:center;font-weight:900;font-size:22px;line-height:1.15}
+        .kitchen-item{font-weight:800;font-size:13px}
+        .kitchen-qty{font-weight:900;font-size:16px}
+        .kitchen-note,.kitchen-note strong{font-weight:900!important;font-size:13px;text-align:left!important}
+        .order-note-text{display:block;font-weight:900!important;font-size:13px;text-align:left}
         footer{margin-top:4mm;font-size:13px}
         footer div{display:flex;justify-content:space-between;margin:1.5mm 0}
         .total{font-size:15px;font-weight:700;border-top:1px solid #111;padding-top:2mm}
