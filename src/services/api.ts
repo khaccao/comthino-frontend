@@ -202,6 +202,38 @@ export const adminApi = {
   updatePosPaymentSetting: (data: any) => api.put('/admin/pos/payment-setting', data).then(res => res.data),
   updatePosPrintTemplate: (code: string, content: string) =>
     api.put(`/admin/pos/print-templates/${code}`, { content }).then(res => res.data),
+
+  getImageKitAuth: () => api.get('/admin/imagekit/auth').then(unwrapData),
+};
+
+// --- BRANCH / CHAIN API ---
+export const branchApi = {
+  getAll: (params?: any) => api.get('/admin/branches', { params }).then(unwrapItems),
+  getById: (id: string) => api.get(`/admin/branches/${id}`).then(unwrapData),
+  create: (data: any) => api.post('/admin/branches', data).then(unwrapData),
+  update: (id: string, data: any) => api.put(`/admin/branches/${id}`, data).then(unwrapData),
+  assignUserBranches: (userId: string, data: any) => api.put(`/admin/users/${userId}/branches`, data).then(unwrapData),
+};
+
+// --- CUSTOMER / LOYALTY API ---
+export const customerApi = {
+  getBootstrap: () => api.get('/admin/customers/bootstrap').then(unwrapData),
+  getAll: (params?: any) => api.get('/admin/customers', { params }).then(unwrapData),
+  getById: (id: string) => api.get(`/admin/customers/${id}`).then(unwrapData),
+  create: (data: any) => api.post('/admin/customers', data).then(unwrapData),
+  update: (id: string, data: any) => api.put(`/admin/customers/${id}`, data).then(unwrapData),
+  addPointTransaction: (data: any) => api.post('/admin/customers/points', data).then(unwrapData),
+  validateVoucher: (data: any) => api.post('/admin/customers/vouchers/validate', data).then(unwrapData),
+  createVoucher: (data: any) => api.post('/admin/customers/vouchers', data).then(unwrapData),
+  updateVoucher: (id: string, data: any) => api.put(`/admin/customers/vouchers/${id}`, data).then(unwrapData),
+};
+
+// --- FACE REGISTRATION / ATTENDANCE API ---
+export const faceApi = {
+  getRegistrationBootstrap: (otp?: string) =>
+    api.get('/admin/face-registration/bootstrap', otp ? { headers: { 'x-otp-code': otp } } : undefined).then(unwrapData),
+  registerEmployeeFace: (data: any) => api.post('/admin/face-registration', data).then(unwrapData),
+  recognizeAttendance: (data: any) => api.post('/admin/face-attendance/recognize', data).then(unwrapData),
 };
 
 // --- RBAC API ---

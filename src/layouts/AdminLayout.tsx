@@ -7,7 +7,8 @@ import {
   Sparkles, Layers, Utensils, FolderOpen, FileImage, Navigation, LogOut,
   ChevronRight, User as UserIcon, X, Newspaper, PenLine, Globe, Shield,
   Users, Key, History, FileText, CheckSquare, CreditCard, DollarSign,
-  BookOpen, BarChart2, Truck, ChevronDown, Monitor, CalendarClock, AlertTriangle, Package
+  BookOpen, BarChart2, Truck, ChevronDown, Monitor, CalendarClock, AlertTriangle, Package,
+  Heart, Store, ScanFace
 } from 'lucide-react';
 
 interface NavGroup {
@@ -87,6 +88,7 @@ export default function AdminLayout() {
         { label: 'Máy POS', path: '/admin/pos', icon: Monitor, menuCode: 'ORDER_POS' },
         { label: 'Chạy bàn', path: '/admin/pos/runner', icon: Utensils, menuCode: 'POS_RUNNER' },
         { label: 'Kho bếp & định lượng', path: '/admin/kitchen-inventory', icon: Package, menuCode: 'KITCHEN_INVENTORY' },
+        { label: 'Khách hàng', path: '/admin/customers', icon: Heart, menuCode: 'CUSTOMER_MANAGEMENT' },
       ],
     },
     {
@@ -138,11 +140,14 @@ export default function AdminLayout() {
       label: 'NHÂN SỰ',
       items: [
         { label: 'Chấm công & lương', path: '/admin/payroll', icon: CalendarClock, menuCode: 'PAYROLL' },
+        { label: 'Đăng ký khuôn mặt', path: '/admin/face-registration', icon: ScanFace, menuCode: 'FACE_ATTENDANCE' },
+        { label: 'Chấm công khuôn mặt', path: '/admin/face-attendance', icon: ScanFace, menuCode: 'FACE_ATTENDANCE', permissionCode: 'CREATE' },
       ],
     },
     {
       label: 'HỆ THỐNG',
       items: [
+        { label: 'Chi nhánh', path: '/admin/system/branches', icon: Store, menuCode: 'BRANCH_MANAGEMENT' },
         { label: 'Người dùng', path: '/admin/users', icon: Users, menuCode: 'USER_MANAGEMENT' },
         { label: 'Vai trò', path: '/admin/roles', icon: Shield, menuCode: 'ROLE_MANAGEMENT' },
         { label: 'Phân quyền', path: '/admin/permissions', icon: Key, menuCode: 'PERMISSION_MANAGEMENT' },

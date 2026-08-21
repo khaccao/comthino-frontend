@@ -50,6 +50,10 @@ import PaymentApprovals from './pages/admin/PaymentApprovals';
 import CashReports from './pages/admin/CashReports';
 import Payroll from './pages/admin/Payroll';
 import KitchenInventory from './pages/admin/KitchenInventory';
+import Customers from './pages/admin/Customers';
+import Branches from './pages/admin/Branches';
+import FaceRegistration from './pages/admin/FaceRegistration';
+import FaceAttendance from './pages/admin/FaceAttendance';
 
 function AdminIndexRedirect() {
   const { user } = useAuthStore();
@@ -134,6 +138,10 @@ export default function App() {
           <Route path="suppliers" element={<AdminRouteGuard menuCode="SUPPLIER_CATEGORY"><Suppliers /></AdminRouteGuard>} />
           <Route path="suppliers/debt" element={<AdminRouteGuard menuCode="SUPPLIER_DEBT"><SupplierDebts /></AdminRouteGuard>} />
           <Route path="payroll" element={<AdminRouteGuard menuCode="PAYROLL"><Payroll /></AdminRouteGuard>} />
+          <Route path="customers" element={<AdminRouteGuard menuCode="CUSTOMER_MANAGEMENT"><Customers /></AdminRouteGuard>} />
+          <Route path="system/branches" element={<AdminRouteGuard menuCode="BRANCH_MANAGEMENT"><Branches /></AdminRouteGuard>} />
+          <Route path="face-registration" element={<AdminRouteGuard menuCode="FACE_ATTENDANCE"><FaceRegistration /></AdminRouteGuard>} />
+          <Route path="face-attendance" element={<AdminRouteGuard menuCode="FACE_ATTENDANCE" permissionCode="CREATE"><FaceAttendance /></AdminRouteGuard>} />
           <Route path="kitchen-inventory" element={<AdminRouteGuard menuCode="KITCHEN_INVENTORY"><KitchenInventory /></AdminRouteGuard>} />
         </Route>
 
