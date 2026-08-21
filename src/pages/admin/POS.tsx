@@ -4,6 +4,7 @@ import {
   Check,
   CreditCard,
   Edit2,
+  Heart,
   Minus,
   Plus,
   Printer,
@@ -12,11 +13,13 @@ import {
   Save,
   Search,
   Smartphone,
+  Ticket,
   Trash2,
   Utensils,
+  UserRound,
   X,
 } from 'lucide-react';
-import { adminApi } from '../../services/api';
+import { adminApi, customerApi } from '../../services/api';
 import RevenueOtpPrompt from '../../components/admin/RevenueOtpPrompt';
 import { useAuthStore } from '../../utils/authStore';
 
@@ -87,6 +90,14 @@ type PosOrder = {
   TotalAmount: number;
   PaymentQrUrl?: string;
   PaymentMethod?: string;
+  BranchId?: string;
+  CustomerId?: string;
+  CustomerCode?: string;
+  CustomerName?: string;
+  CustomerPhone?: string;
+  VoucherId?: string;
+  PointsEarned?: number;
+  PointsRedeemed?: number;
   CreatedAt: string;
   PaidAt?: string;
   ItemCount?: number;
@@ -148,6 +159,36 @@ const formatDateTime = (value?: string) => {
     year: 'numeric',
     timeZone: 'Asia/Ho_Chi_Minh',
   });
+};
+
+type LoyaltySetting = {
+  pointsPerAmount: number;
+  pointsEarned: number;
+  minOrderAmount: number;
+  maxRedeemPercent: number;
+  pointValueAmount: number;
+};
+
+type MemberCustomer = {
+  id: string;
+  code: string;
+  fullName: string;
+  phone?: string;
+  currentPoints: number;
+  totalSpent: number;
+  tier?: { id: string; name: string; discountPercent?: number } | null;
+};
+
+type MemberVoucher = {
+  id: string;
+  code: string;
+  name: string;
+  discountType: 'AMOUNT' | 'PERCENT';
+  discountValue: number;
+  minOrderAmount: number;
+  maxDiscount?: number | null;
+  pointsCost?: number;
+  isActive?: boolean;
 };
 
 const formatVietnamPrintTime = (value: Date = new Date()) =>
@@ -274,6 +315,15 @@ export default function POS() {
   const [selectedTable, setSelectedTable] = useState<PosTable | null>(null);
   const [currentOrder, setCurrentOrder] = useState<PosOrder | null>(null);
   const [mobilePaymentOrder, setMobilePaymentOrder] = useState<PosOrder | null>(null);
+  const [memberCheckoutOpen, setMemberCheckoutOpen] = useState(false);
+  const [memberCustomers, setMemberCustomers] = useState<MemberCustomer[]>([]);
+  const [memberVouchers, setMemberVouchers] = useState<MemberVoucher[]>([]);
+  const [memberSetting, setMemberSetting] = useState<LoyaltySetting | null>(null);
+  const [memberSearch, setMemberSearch] = useState('');
+  const [selectedMemberId, setSelectedMemberId] = useState('');
+  const [selectedVoucherId, setSelectedVoucherId] = useState('');
+  const [pointsToRedeem, setPointsToRedeem] = useState(0);
+  const [memberCheckoutLoading, setMemberCheckoutLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [menuPage, setMenuPage] = useState(1);
@@ -608,6 +658,7 @@ export default function POS() {
 
   const returnToTableMapAfterPayment = async (orderNo: string, warning?: string | null) => {
     setMobilePaymentOrder(null);
+    setMemberCheckoutOpen(false);
     setCurrentOrder(null);
     setSelectedTable(null);
     setSelectedCategory('ALL');
@@ -647,6 +698,110 @@ export default function POS() {
       await saveDirtyItemNotes();
       const order = (await saveOrderMeta(true)) || currentOrder;
       setMobilePaymentOrder(order);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const loadMemberCheckoutData = async (keywordValue = memberSearch) => {
+    setMemberCheckoutLoading(true);
+    try {
+      const [boot, customersRes] = await Promise.all([
+        customerApi.getBootstrap(),
+        customerApi.getAll({ keyword: keywordValue || undefined, limit: 30 }),
+      ]);
+      setMemberSetting(boot.setting || null);
+      setMemberVouchers((boot.vouchers || []).filter((voucher: MemberVoucher) => voucher.isActive !== false));
+      setMemberCustomers(customersRes.items || []);
+    } catch (error: any) {
+      setToast(error?.response?.data?.message || 'Không tải được dữ liệu khách thành viên.');
+    } finally {
+      setMemberCheckoutLoading(false);
+    }
+  };
+
+  const openMemberCheckout = async () => {
+    if (!currentOrder || !currentOrder.items?.length) return;
+    setIsSaving(true);
+    try {
+      await saveDirtyItemNotes();
+      const order = (await saveOrderMeta(true)) || currentOrder;
+      setCurrentOrder(order);
+      syncOpenOrder(order);
+      setMemberCheckoutOpen(true);
+      await loadMemberCheckoutData();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const selectedMember = memberCustomers.find((item) => item.id === selectedMemberId) || null;
+  const selectedVoucher = memberVouchers.find((item) => item.id === selectedVoucherId) || null;
+  const calculateVoucherDiscount = (voucher: MemberVoucher | null, orderAmount: number) => {
+    if (!voucher) return 0;
+    if (Number(voucher.minOrderAmount || 0) > orderAmount) return 0;
+    const raw = voucher.discountType === 'PERCENT'
+      ? orderAmount * Math.min(100, Number(voucher.discountValue || 0)) / 100
+      : Number(voucher.discountValue || 0);
+    return Math.max(0, Math.min(raw, Number(voucher.maxDiscount || raw), orderAmount));
+  };
+  const memberSubTotal = Number(currentOrder?.SubTotal || 0);
+  const memberTierDiscount = selectedMember?.tier?.discountPercent
+    ? calcDiscountAmount(memberSubTotal, 'PERCENT', Number(selectedMember.tier.discountPercent || 0))
+    : 0;
+  const memberVoucherDiscount = calculateVoucherDiscount(selectedVoucher, Math.max(0, memberSubTotal - memberTierDiscount));
+  const maxPointDiscount = Math.max(0, memberSubTotal * Number(memberSetting?.maxRedeemPercent || 0) / 100);
+  const availableRedeemPoints = Math.max(0, Number(selectedMember?.currentPoints || 0) - Number(selectedVoucher?.pointsCost || 0));
+  const safeRedeemPoints = Math.min(Math.max(0, Number(pointsToRedeem || 0)), availableRedeemPoints);
+  const memberPointDiscount = Math.min(safeRedeemPoints * Number(memberSetting?.pointValueAmount || 0), maxPointDiscount);
+  const memberTotalDiscount = Math.min(memberSubTotal, Math.round(memberTierDiscount + memberVoucherDiscount + memberPointDiscount));
+  const memberTotalAmount = Math.max(0, memberSubTotal - memberTotalDiscount);
+  const memberPointsEarned = memberSetting?.pointsPerAmount
+    ? Math.floor(memberTotalAmount / Number(memberSetting.pointsPerAmount || 1)) * Number(memberSetting.pointsEarned || 1)
+    : 0;
+
+  const payMemberOrder = async () => {
+    if (!currentOrder || !currentOrder.items?.length || !selectedMember) {
+      setToast('Chọn khách thành viên trước khi thanh toán.');
+      return;
+    }
+    if (selectedVoucher) {
+      const validation = await customerApi.validateVoucher({
+        code: selectedVoucher.code,
+        customerId: selectedMember.id,
+        branchId: currentOrder.BranchId,
+        orderAmount: Math.max(0, memberSubTotal - memberTierDiscount),
+      });
+      if (!validation.valid) {
+        setToast(validation.reason || 'Voucher không dùng được cho đơn này.');
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    try {
+      setToast('Đang hoàn tất thanh toán thành viên...');
+      const pointsCost = Number(selectedVoucher?.pointsCost || 0);
+      const updated = await adminApi.updatePosOrder(currentOrder.Id, {
+        note: currentOrder.Note || '',
+        discountType: 'AMOUNT',
+        discountValue: memberTotalDiscount,
+        customerId: selectedMember.id,
+        customerCode: selectedMember.code,
+        customerName: selectedMember.fullName,
+        customerPhone: selectedMember.phone || '',
+        voucherId: selectedVoucher?.id || null,
+        pointsRedeemed: safeRedeemPoints + pointsCost,
+      });
+      const orderToPay = updated.success ? updated.data : currentOrder;
+      const res = await adminApi.payPosOrder(orderToPay.Id, 'MEMBER');
+      if (res.success) {
+        await returnToTableMapAfterPayment(orderToPay.OrderNo, res.stockWarning);
+        if (revenueOtpVerified) await loadReports();
+      }
+    } catch (error: any) {
+      console.error(error);
+      setToast(error.response?.data?.message || 'Không hoàn tất được thanh toán thành viên.');
     } finally {
       setIsSaving(false);
     }
@@ -1122,6 +1277,171 @@ export default function POS() {
         </div>
       )}
 
+      {memberCheckoutOpen && currentOrder && (
+        <div className="fixed inset-0 z-[75] flex items-end bg-stone-950/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="mx-auto flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden bg-white shadow-2xl sm:h-[min(92vh,860px)] sm:rounded-3xl">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 bg-white p-4 sm:p-5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-700">Thanh toán khách thành viên</p>
+                <h2 className="mt-1 text-2xl font-black text-stone-950">{currentOrder.TableName}</h2>
+                <p className="text-sm font-bold text-amber-700">{currentOrder.OrderNo}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMemberCheckoutOpen(false)}
+                className="rounded-full border border-stone-200 p-2 text-stone-500 hover:bg-stone-50"
+                aria-label="Đóng thanh toán thành viên"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="grid flex-1 gap-0 overflow-y-auto lg:grid-cols-[1fr_360px]">
+              <div className="space-y-4 p-4 sm:p-5">
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <label className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+                    <input
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') loadMemberCheckoutData(memberSearch);
+                      }}
+                      placeholder="Tìm khách theo tên, mã, số điện thoại..."
+                      className="h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 pl-10 pr-3 text-sm font-bold outline-none focus:border-amber-500 focus:bg-white"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => loadMemberCheckoutData(memberSearch)}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-stone-200 px-4 py-3 text-sm font-extrabold text-stone-700 hover:bg-stone-50"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${memberCheckoutLoading ? 'animate-spin' : ''}`} />
+                    Tìm
+                  </button>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  {memberCustomers.map((customer) => {
+                    const active = customer.id === selectedMemberId;
+                    return (
+                      <button
+                        key={customer.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedMemberId(customer.id);
+                          setPointsToRedeem(0);
+                        }}
+                        className={`rounded-2xl border p-4 text-left transition ${active ? 'border-amber-500 bg-amber-50 shadow-sm' : 'border-stone-200 bg-white hover:border-amber-200 hover:bg-amber-50/40'}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-base font-black text-stone-950">{customer.fullName}</p>
+                            <p className="mt-1 text-xs font-bold text-stone-500">{customer.code} · {customer.phone || 'Chưa có SĐT'}</p>
+                          </div>
+                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-black text-emerald-700">
+                            {customer.currentPoints || 0} điểm
+                          </span>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-stone-600">
+                          <span>Hạng: {customer.tier?.name || 'Thành viên'}</span>
+                          <span className="text-right">{formatVnd(customer.totalSpent)}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {!memberCustomers.length && (
+                    <div className="rounded-2xl border border-dashed border-stone-200 p-8 text-center text-sm font-bold text-stone-400 md:col-span-2">
+                      Chưa tìm thấy khách thành viên.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <aside className="border-t border-stone-100 bg-stone-50 p-4 sm:p-5 lg:border-l lg:border-t-0">
+                <div className="rounded-3xl bg-white p-4 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-2xl bg-amber-100 p-3 text-amber-700">
+                      <UserRound className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase text-stone-400">Khách đang chọn</p>
+                      <p className="text-lg font-black text-stone-950">{selectedMember?.fullName || 'Chưa chọn khách'}</p>
+                    </div>
+                  </div>
+
+                  <label className="mt-4 block text-xs font-black uppercase text-stone-500">
+                    Voucher
+                    <select
+                      value={selectedVoucherId}
+                      onChange={(e) => setSelectedVoucherId(e.target.value)}
+                      className="mt-2 h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-sm font-bold normal-case text-stone-900 outline-none focus:border-amber-500"
+                    >
+                      <option value="">Không dùng voucher</option>
+                      {memberVouchers.map((voucher) => (
+                        <option key={voucher.id} value={voucher.id}>
+                          {voucher.code} - {voucher.name}{voucher.pointsCost ? ` (${voucher.pointsCost} điểm)` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="mt-4 block text-xs font-black uppercase text-stone-500">
+                    Điểm đổi thành tiền
+                    <input
+                      type="number"
+                      min={0}
+                      max={availableRedeemPoints}
+                      value={pointsToRedeem}
+                      onChange={(e) => setPointsToRedeem(Number(e.target.value || 0))}
+                      className="mt-2 h-12 w-full rounded-2xl border border-stone-200 bg-stone-50 px-3 text-base font-black normal-case text-stone-900 outline-none focus:border-amber-500"
+                      placeholder="0"
+                    />
+                    <span className="mt-1 block text-[11px] normal-case text-stone-500">
+                      Có thể đổi tối đa {availableRedeemPoints} điểm. {Number(memberSetting?.pointValueAmount || 0).toLocaleString('vi-VN')}đ / điểm.
+                    </span>
+                  </label>
+
+                  <div className="mt-4 space-y-2 rounded-2xl bg-stone-50 p-3 text-sm">
+                    <div className="flex justify-between gap-3"><span>Tạm tính</span><b>{formatVnd(memberSubTotal)}</b></div>
+                    <div className="flex justify-between gap-3"><span>Ưu đãi hạng</span><b className="text-rose-600">-{formatVnd(memberTierDiscount)}</b></div>
+                    <div className="flex justify-between gap-3"><span>Voucher</span><b className="text-rose-600">-{formatVnd(memberVoucherDiscount)}</b></div>
+                    <div className="flex justify-between gap-3"><span>Đổi điểm</span><b className="text-rose-600">-{formatVnd(memberPointDiscount)}</b></div>
+                    <div className="flex justify-between gap-3 border-t border-stone-200 pt-3 text-lg">
+                      <span className="font-black">Cần thu</span>
+                      <b className="text-emerald-700">{formatVnd(memberTotalAmount)}</b>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-xs font-bold text-emerald-800">
+                    <Ticket className="mb-1 h-4 w-4" />
+                    Sau thanh toán: cộng khoảng {memberPointsEarned} điểm, trừ {safeRedeemPoints + Number(selectedVoucher?.pointsCost || 0)} điểm đã dùng.
+                  </div>
+                </div>
+              </aside>
+            </div>
+
+            <div className="grid shrink-0 gap-2 border-t border-stone-100 bg-white p-3 sm:grid-cols-2 sm:p-4">
+              <button
+                type="button"
+                onClick={() => setMemberCheckoutOpen(false)}
+                className="rounded-xl border border-stone-200 px-4 py-3 text-sm font-extrabold text-stone-700"
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={payMemberOrder}
+                disabled={!selectedMember || isSaving}
+                className="rounded-xl bg-stone-950 px-4 py-3 text-sm font-extrabold text-white hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+              >
+                {isSaving ? 'Đang hoàn tất...' : 'Xác nhận thanh toán thành viên'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-4 rounded-2xl border border-stone-200 bg-white p-4 shadow-warm sm:p-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-700">Cơm Thị Nở Restaurant</p>
@@ -1487,6 +1807,14 @@ export default function POS() {
                   >
                     <QrCode className="h-4 w-4" />
                     Hiển thị hóa đơn QR
+                  </button>
+                  <button
+                    onClick={openMemberCheckout}
+                    disabled={!currentOrder.items?.length || isSaving}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-extrabold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Heart className="h-4 w-4" />
+                    Thanh toán thành viên
                   </button>
                   <button
                     onClick={payOrder}
