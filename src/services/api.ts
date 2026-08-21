@@ -234,6 +234,16 @@ export const faceApi = {
     api.get('/admin/face-registration/bootstrap', otp ? { headers: { 'x-otp-code': otp } } : undefined).then(unwrapData),
   registerEmployeeFace: (data: any) => api.post('/admin/face-registration', data).then(unwrapData),
   recognizeAttendance: (data: any) => api.post('/admin/face-attendance/recognize', data).then(unwrapData),
+  getConfig: () => api.get('/admin/face-recognition/config').then(unwrapData),
+  updateConfig: (data: any) => api.put('/admin/face-recognition/config', data).then(unwrapData),
+  checkHealth: () => api.post('/admin/face-recognition/health').then(unwrapData),
+};
+
+// --- CAO RESTAURANT DATA API ---
+export const caoRestaurantApi = {
+  getCatalog: () => api.get('/admin/cao-restaurant/catalog').then(unwrapData),
+  previewTable: (tableName: string, params?: { schema?: string; limit?: number }) =>
+    api.get(`/admin/cao-restaurant/tables/${encodeURIComponent(tableName)}/preview`, { params }).then(unwrapData),
 };
 
 // --- RBAC API ---

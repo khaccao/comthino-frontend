@@ -14,6 +14,8 @@ export const ADMIN_VIEW_ROUTES: AdminPermissionRoute[] = [
   { path: '/admin/system/branches', menuCode: 'BRANCH_MANAGEMENT' },
   { path: '/admin/face-registration', menuCode: 'FACE_ATTENDANCE' },
   { path: '/admin/face-attendance', menuCode: 'FACE_ATTENDANCE' },
+  { path: '/admin/face-recognition', menuCode: 'FACE_ATTENDANCE' },
+  { path: '/admin/cao-restaurant', menuCode: 'CAO_RESTAURANT_DATA' },
   { path: '/admin/site-settings', menuCode: 'SYSTEM_CONFIG' },
   { path: '/admin/banners', menuCode: 'SYSTEM_CONFIG' },
   { path: '/admin/home-sections', menuCode: 'SYSTEM_CONFIG' },

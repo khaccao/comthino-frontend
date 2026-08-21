@@ -54,6 +54,8 @@ import Customers from './pages/admin/Customers';
 import Branches from './pages/admin/Branches';
 import FaceRegistration from './pages/admin/FaceRegistration';
 import FaceAttendance from './pages/admin/FaceAttendance';
+import FaceRecognitionSettings from './pages/admin/FaceRecognitionSettings';
+import CaoRestaurantData from './pages/admin/CaoRestaurantData';
 
 function AdminIndexRedirect() {
   const { user } = useAuthStore();
@@ -142,6 +144,8 @@ export default function App() {
           <Route path="system/branches" element={<AdminRouteGuard menuCode="BRANCH_MANAGEMENT"><Branches /></AdminRouteGuard>} />
           <Route path="face-registration" element={<AdminRouteGuard menuCode="FACE_ATTENDANCE"><FaceRegistration /></AdminRouteGuard>} />
           <Route path="face-attendance" element={<AdminRouteGuard menuCode="FACE_ATTENDANCE" permissionCode="CREATE"><FaceAttendance /></AdminRouteGuard>} />
+          <Route path="face-recognition" element={<AdminRouteGuard menuCode="FACE_ATTENDANCE"><FaceRecognitionSettings /></AdminRouteGuard>} />
+          <Route path="cao-restaurant" element={<AdminRouteGuard menuCode="CAO_RESTAURANT_DATA"><CaoRestaurantData /></AdminRouteGuard>} />
           <Route path="kitchen-inventory" element={<AdminRouteGuard menuCode="KITCHEN_INVENTORY"><KitchenInventory /></AdminRouteGuard>} />
         </Route>
 
