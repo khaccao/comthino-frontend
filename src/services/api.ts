@@ -247,7 +247,14 @@ export const caoRestaurantApi = {
 };
 
 // --- RBAC API ---
-const unwrapItems = (response: any) => response.data?.items ?? response.data?.data ?? response.data;
+const unwrapItems = (response: any) => {
+  const payload = response.data;
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data?.items)) return payload.data.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
 const unwrapData = (response: any) => response.data?.data ?? response.data;
 
 export const userApi = {
