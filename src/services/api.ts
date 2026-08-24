@@ -206,6 +206,24 @@ export const adminApi = {
   getImageKitAuth: () => api.get('/admin/imagekit/auth').then(unwrapData),
 };
 
+// --- HOSPITALITY WEBSITE BUILDER API ---
+export const websiteBuilderApi = {
+  getBootstrap: () => api.get('/admin/website-builder/bootstrap').then(unwrapData),
+  createSite: (data: any) => api.post('/admin/website-builder/sites', data).then(unwrapData),
+  updateSite: (siteId: string, data: any) => api.put(`/admin/website-builder/sites/${siteId}`, data).then(unwrapData),
+  applyTheme: (siteId: string, themeVersionId: string) =>
+    api.post(`/admin/website-builder/sites/${siteId}/apply-theme`, { themeVersionId }).then(unwrapData),
+  savePageDraft: (pageId: string, document: any) =>
+    api.post(`/admin/website-builder/pages/${pageId}/save-draft`, { document }).then(unwrapData),
+  addDomain: (siteId: string, data: any) =>
+    api.post(`/admin/website-builder/sites/${siteId}/domains`, data).then(unwrapData),
+  verifyDomain: (domainId: string) =>
+    api.post(`/admin/website-builder/domains/${domainId}/verify`).then(unwrapData),
+  publishSite: (siteId: string) => api.post(`/admin/website-builder/sites/${siteId}/publish`).then(unwrapData),
+  rollbackDeployment: (deploymentId: string) =>
+    api.post(`/admin/website-builder/deployments/${deploymentId}/rollback`).then(unwrapData),
+};
+
 // --- BRANCH / CHAIN API ---
 export const branchApi = {
   getAll: (params?: any) => api.get('/admin/branches', { params }).then(unwrapItems),

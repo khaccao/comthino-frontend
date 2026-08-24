@@ -8,7 +8,7 @@ import {
   ChevronRight, User as UserIcon, X, Newspaper, PenLine, Globe, Shield,
   Users, Key, History, FileText, CheckSquare, CreditCard, DollarSign,
   BookOpen, BarChart2, Truck, ChevronDown, Monitor, CalendarClock, AlertTriangle, Package,
-  Heart, Store, ScanFace, BrainCircuit, Database
+  Heart, Store, ScanFace, BrainCircuit, Database, PanelTop
 } from 'lucide-react';
 
 interface NavGroup {
@@ -103,6 +103,7 @@ export default function AdminLayout() {
         { label: 'Đánh giá khách', path: '/admin/testimonials', icon: MessageSquare, menuCode: 'SYSTEM_CONFIG' },
         { label: 'Liên hệ', path: '/admin/contact-messages', icon: MessageSquare, menuCode: 'SYSTEM_CONFIG' },
         { label: 'Quản lý Media', path: '/admin/media', icon: FileImage, menuCode: 'SYSTEM_CONFIG' },
+        { label: 'Website Builder', path: '/admin/website-builder', icon: PanelTop, menuCode: 'WEBSITE_BUILDER' },
       ],
     },
     {
