@@ -147,7 +147,8 @@ export default function App() {
           <Route path="face-attendance" element={<AdminRouteGuard menuCode="FACE_ATTENDANCE" permissionCode="CREATE"><FaceAttendance /></AdminRouteGuard>} />
           <Route path="face-recognition" element={<AdminRouteGuard menuCode="FACE_ATTENDANCE"><FaceRecognitionSettings /></AdminRouteGuard>} />
           <Route path="cao-restaurant" element={<AdminRouteGuard menuCode="CAO_RESTAURANT_DATA"><CaoRestaurantData /></AdminRouteGuard>} />
-          <Route path="website-builder" element={<AdminRouteGuard menuCode="WEBSITE_BUILDER"><WebsiteBuilder /></AdminRouteGuard>} />
+          <Route path="website-builder" element={<Navigate to="/admin/website-builder/overview" replace />} />
+          <Route path="website-builder/:builderSection" element={<AdminRouteGuard menuCode="WEBSITE_BUILDER"><WebsiteBuilder /></AdminRouteGuard>} />
           <Route path="kitchen-inventory" element={<AdminRouteGuard menuCode="KITCHEN_INVENTORY"><KitchenInventory /></AdminRouteGuard>} />
         </Route>
 
