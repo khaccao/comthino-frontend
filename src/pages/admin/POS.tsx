@@ -72,6 +72,9 @@ type PosOrderItem = {
   Quantity: number;
   Note?: string;
   Status: 'NEW' | 'SENT' | 'CHANGED';
+  SentQuantity?: number;
+  RevenueRiskFlag?: boolean;
+  RevenueRiskNote?: string;
 };
 
 type PosOrder = {
@@ -101,7 +104,26 @@ type PosOrder = {
   CreatedAt: string;
   PaidAt?: string;
   ItemCount?: number;
+  PendingKitchenItemCount?: number;
+  PendingKitchenQuantity?: number;
+  KitchenPrintCount?: number;
   items?: PosOrderItem[];
+};
+
+type PosKitchenPrintLog = {
+  Id: string;
+  OrderId: string;
+  OrderNo: string;
+  TableName: string;
+  PrintBatchNo: number;
+  PrintMode: string;
+  ItemCount: number;
+  TotalQuantity: number;
+  TotalAmount: number;
+  RiskNote?: string;
+  PrintedBy?: string;
+  PrintedAt: string;
+  items?: Array<{ Name: string; DeltaQuantity: number; SnapshotQuantity: number; Note?: string; ActionType?: string }>;
 };
 
 type PosPaymentSetting = {
@@ -336,6 +358,8 @@ export default function POS() {
   const [history, setHistory] = useState<PosOrder[]>([]);
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState<PosOrder | null>(null);
   const [dashboard, setDashboard] = useState<PosDashboardData | null>(null);
+  const [kitchenPrintLogs, setKitchenPrintLogs] = useState<PosKitchenPrintLog[]>([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER' | ''>('');
   const [revenueOtp, setRevenueOtp] = useState('');
   const [revenueOtpVerified, setRevenueOtpVerified] = useState(revenueOtpBypassed);
   const [revenueOtpError, setRevenueOtpError] = useState<string | null>(null);
@@ -395,12 +419,14 @@ export default function POS() {
 
   const loadReports = async (otpCode = revenueOtp) => {
     try {
-      const [historyRes, dashboardRes] = await Promise.all([
+      const [historyRes, dashboardRes, kitchenLogRes] = await Promise.all([
         adminApi.getPosHistory(historyDate, otpCode),
         adminApi.getPosDashboard(historyDate, otpCode),
+        adminApi.getPosKitchenPrintLogs(historyDate),
       ]);
       if (historyRes.success) setHistory(historyRes.data || []);
       if (dashboardRes.success) setDashboard(dashboardRes.data);
+      if (kitchenLogRes.success) setKitchenPrintLogs(kitchenLogRes.data || []);
       setRevenueOtp(otpCode);
       setRevenueOtpVerified(true);
       setRevenueOtpError(null);
@@ -414,6 +440,7 @@ export default function POS() {
         setRevenueOtpError(message);
         setDashboard(null);
         setHistory([]);
+        setKitchenPrintLogs([]);
       } else {
         setToast(message);
       }
@@ -482,7 +509,12 @@ export default function POS() {
   const pagedItems = filteredItems.slice((menuPage - 1) * pageSize, menuPage * pageSize);
   const maxMenuPage = Math.max(1, Math.ceil(filteredItems.length / pageSize));
 
-  const hasKitchenChanges = currentOrder?.items?.some((item) => item.Status === 'NEW' || item.Status === 'CHANGED');
+  const hasKitchenChanges = Boolean(
+    Number(currentOrder?.PendingKitchenItemCount || 0) > 0 ||
+    currentOrder?.items?.some((item) => item.Status === 'NEW' || item.Status === 'CHANGED' || Number(item.SentQuantity || 0) !== Number(item.Quantity || 0)),
+  );
+  const isKitchenPendingItem = (item: PosOrderItem) =>
+    item.Status === 'NEW' || item.Status === 'CHANGED' || Number(item.SentQuantity || 0) !== Number(item.Quantity || 0);
 
   const normalizeTableLayout = (table: PosTable) => ({
     positionX: Number(table.PositionX || 0),
@@ -545,6 +577,7 @@ export default function POS() {
   const selectTable = async (table: PosTable) => {
     setSelectedTable(table);
     setCurrentOrder(null);
+    setSelectedPaymentMethod('');
     try {
       const res = await adminApi.openPosOrder(table.Id);
       if (res.success) {
@@ -648,6 +681,7 @@ export default function POS() {
     if (!currentOrder || !currentOrder.items?.length) return;
     const orderToConfirm = await saveDirtyItemNotes();
     if (!orderToConfirm) return;
+    await printOrder('KITCHEN');
     const res = await adminApi.confirmPosKitchen(orderToConfirm.Id);
     if (res.success) {
       setCurrentOrder(res.data);
@@ -672,13 +706,21 @@ export default function POS() {
 
   const payOrder = async () => {
     if (!currentOrder || !currentOrder.items?.length) return;
+    if (hasKitchenChanges) {
+      setToast('Đơn còn món phát sinh/chỉnh sửa chưa xác nhận bếp. Xác nhận bếp trước khi hoàn tất thanh toán.');
+      return;
+    }
+    if (!selectedPaymentMethod) {
+      setToast('Chọn tiền mặt hoặc chuyển khoản trước khi hoàn tất thanh toán.');
+      return;
+    }
     setIsSaving(true);
     try {
       setToast('Đang hoàn tất thanh toán...');
       const orderToPay = (await saveDirtyItemNotes()) || currentOrder;
       const savedOrder = await saveOrderMeta(true);
       const paidOrder = savedOrder || orderToPay;
-      const res = await adminApi.payPosOrder(paidOrder.Id, 'QR_OR_CASH');
+      const res = await adminApi.payPosOrder(paidOrder.Id, selectedPaymentMethod);
       if (res.success) {
         await returnToTableMapAfterPayment(paidOrder.OrderNo, res.stockWarning);
         if (revenueOtpVerified) await loadReports();
@@ -765,6 +807,10 @@ export default function POS() {
       setToast('Chọn khách thành viên trước khi thanh toán.');
       return;
     }
+    if (hasKitchenChanges) {
+      setToast('Đơn còn món phát sinh/chỉnh sửa chưa xác nhận bếp. Xác nhận bếp trước khi thanh toán thành viên.');
+      return;
+    }
     if (selectedVoucher) {
       const validation = await customerApi.validateVoucher({
         code: selectedVoucher.code,
@@ -825,11 +871,24 @@ export default function POS() {
     }
 
     const template = templates.find((item) => item.Code === type);
-    const rows = (currentOrder.items || [])
+    const kitchenPendingItems = (currentOrder.items || []).filter(isKitchenPendingItem);
+    const printableItems = type === 'KITCHEN' && kitchenPendingItems.length
+      ? kitchenPendingItems
+      : (currentOrder.items || []);
+    const rows = printableItems
       .map((item) => {
         const note = itemNoteDrafts[item.Id] ?? item.Note ?? '';
+        const sentQuantity = Number(item.SentQuantity || 0);
+        const quantity = Number(item.Quantity || 0);
+        const deltaQuantity = quantity - sentQuantity;
+        const kitchenQuantity = type === 'KITCHEN' && sentQuantity > 0 ? deltaQuantity : quantity;
+        const actionLabel = type === 'KITCHEN' && sentQuantity > 0
+          ? deltaQuantity > 0
+            ? 'GỌI THÊM'
+            : 'GIẢM/HỦY'
+          : '';
         if (type === 'KITCHEN') {
-          return `<tr class="kitchen-row"><td class="kitchen-item">${escapeHtml(item.Name)}</td><td class="kitchen-qty">${escapeHtml(item.Quantity)}</td><td class="kitchen-note">${note ? `<strong>${escapeHtml(note)}</strong>` : ''}</td></tr>`;
+          return `<tr class="kitchen-row"><td class="kitchen-item">${escapeHtml(item.Name)}${actionLabel ? `<br><small>${actionLabel}</small>` : ''}</td><td class="kitchen-qty">${escapeHtml(kitchenQuantity)}</td><td class="kitchen-note">${note ? `<strong>${escapeHtml(note)}</strong>` : ''}</td></tr>`;
         }
         return `<tr><td>${escapeHtml(item.Name)}${note ? `<br><small>${escapeHtml(note)}</small>` : ''}</td><td>${escapeHtml(item.Quantity)}</td><td>${formatVnd(item.UnitPrice)}</td><td>${formatVnd(Number(item.UnitPrice) * Number(item.Quantity))}</td></tr>`;
       })
@@ -1156,6 +1215,7 @@ export default function POS() {
   const currentDiscountLabel = discountType === 'PERCENT'
     ? `${Number(discount || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`
     : formatVnd(discount);
+  const paymentCompletionBlocked = !currentOrder?.items?.length || isSaving || hasKitchenChanges || !selectedPaymentMethod;
 
   return (
     <div className="-m-4 min-h-[calc(100vh-4rem)] space-y-3 bg-stone-100 p-2 animate-fade-in sm:-m-6 sm:space-y-4 sm:p-4 lg:-m-8 lg:p-5">
@@ -1254,6 +1314,30 @@ export default function POS() {
                   <p className="mt-2 text-xs font-black uppercase text-stone-600">Quét QR để thanh toán</p>
                 </div>
               </div>
+              <div className="mt-3 rounded-2xl border border-stone-200 bg-white p-3 sm:mt-4 sm:p-4">
+                <p className="text-xs font-black uppercase text-stone-500">Phương thức thanh toán</p>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPaymentMethod('CASH')}
+                    className={`rounded-xl border px-3 py-3 text-sm font-extrabold transition ${selectedPaymentMethod === 'CASH' ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-stone-200 text-stone-700'}`}
+                  >
+                    Tiền mặt
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPaymentMethod('BANK_TRANSFER')}
+                    className={`rounded-xl border px-3 py-3 text-sm font-extrabold transition ${selectedPaymentMethod === 'BANK_TRANSFER' ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-stone-200 text-stone-700'}`}
+                  >
+                    Chuyển khoản
+                  </button>
+                </div>
+                {hasKitchenChanges && (
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                    Đơn còn món phát sinh/chỉnh sửa. Xác nhận bếp trước khi hoàn tất thanh toán.
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="grid shrink-0 gap-2 border-t border-stone-100 bg-white p-3 sm:grid-cols-2 sm:p-4">
@@ -1267,7 +1351,7 @@ export default function POS() {
               <button
                 type="button"
                 onClick={payOrder}
-                disabled={isSaving}
+                disabled={paymentCompletionBlocked}
                 className="rounded-xl bg-amber-600 px-4 py-3 text-sm font-extrabold text-white hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-stone-300"
               >
                 {isSaving ? 'Đang hoàn tất...' : 'Đã nhận tiền - hoàn tất'}
@@ -1788,9 +1872,36 @@ export default function POS() {
                     Xác nhận order gửi bếp
                   </button>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    <button onClick={() => printOrder('KITCHEN')} className="rounded-xl border border-stone-200 px-2 py-3 text-xs font-extrabold text-stone-700">Bếp</button>
+                    <button onClick={confirmKitchen} disabled={!hasKitchenChanges} className="rounded-xl border border-stone-200 px-2 py-3 text-xs font-extrabold text-stone-700 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">Bếp</button>
                     <button onClick={() => printOrder('TEMPORARY')} className="rounded-xl border border-stone-200 px-2 py-3 text-xs font-extrabold text-stone-700">Tạm tính</button>
                     <button onClick={() => printOrder('PAYMENT')} className="rounded-xl border border-stone-200 bg-stone-900 px-2 py-3 text-xs font-extrabold text-white">Thanh toán</button>
+                  </div>
+                  <div className="rounded-2xl border border-stone-200 bg-stone-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-black uppercase text-stone-500">Phương thức thanh toán</p>
+                      {!selectedPaymentMethod && <span className="text-[11px] font-bold text-amber-700">Bắt buộc chọn</span>}
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPaymentMethod('CASH')}
+                        className={`rounded-xl border px-3 py-2.5 text-sm font-extrabold transition ${selectedPaymentMethod === 'CASH' ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'}`}
+                      >
+                        Tiền mặt
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPaymentMethod('BANK_TRANSFER')}
+                        className={`rounded-xl border px-3 py-2.5 text-sm font-extrabold transition ${selectedPaymentMethod === 'BANK_TRANSFER' ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300'}`}
+                      >
+                        Chuyển khoản
+                      </button>
+                    </div>
+                    {hasKitchenChanges && (
+                      <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                        Còn món phát sinh/chỉnh sửa chưa xác nhận bếp. Hệ thống sẽ chặn thanh toán để tránh thất thoát doanh thu.
+                      </div>
+                    )}
                   </div>
                   <button
                     onClick={openMobilePayment}
@@ -1818,7 +1929,7 @@ export default function POS() {
                   </button>
                   <button
                     onClick={payOrder}
-                    disabled={!currentOrder.items?.length || isSaving}
+                    disabled={paymentCompletionBlocked}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:bg-stone-300"
                   >
                     <CreditCard className="h-4 w-4" />
@@ -2156,6 +2267,43 @@ export default function POS() {
                 ))}
                 {!dashboard?.topItems?.length && <div className="py-10 text-center text-sm text-stone-500">Chưa có món bán trong ngày này.</div>}
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-warm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-extrabold text-stone-900">Lịch sử in bếp</h3>
+                <p className="mt-1 text-sm text-stone-500">Kiểm soát các lượt gửi bếp và món phát sinh trong ngày.</p>
+              </div>
+              <span className="w-fit rounded-full bg-stone-100 px-3 py-1 text-xs font-black text-stone-600">{kitchenPrintLogs.length} l??t</span>
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
+              {kitchenPrintLogs.map((log) => (
+                <div key={log.Id} className="rounded-xl border border-stone-100 bg-stone-50 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-black text-stone-950">#{log.PrintBatchNo} - {log.TableName}</p>
+                      <p className="text-xs font-bold text-amber-700">{log.OrderNo}</p>
+                    </div>
+                    <p className="text-right text-xs font-semibold text-stone-500">{formatDateTime(log.PrintedAt)}</p>
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    {(log.items || []).map((item, index) => (
+                      <div key={log.Id + '-' + index} className="flex justify-between gap-3 text-xs">
+                        <span className="font-bold text-stone-700">
+                          {item.ActionType === 'ADD' ? '+ ' : item.ActionType === 'REDUCE' ? '- ' : ''}
+                          {item.Name}
+                          {item.Note ? ' (' + item.Note + ')' : ''}
+                        </span>
+                        <span className="font-black text-stone-950">{Number(item.DeltaQuantity || item.SnapshotQuantity || 0).toLocaleString('vi-VN')}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {log.RiskNote && <p className="mt-2 text-[11px] font-semibold text-stone-500">{log.RiskNote}</p>}
+                </div>
+              ))}
+              {!kitchenPrintLogs.length && <div className="rounded-xl border border-dashed border-stone-200 p-8 text-center text-sm text-stone-500 lg:col-span-2 xl:col-span-3">Chưa có lượt in bếp nào trong ngày này.</div>}
             </div>
           </div>
 
