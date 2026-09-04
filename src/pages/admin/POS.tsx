@@ -158,7 +158,16 @@ type PosDashboardData = {
   statusBreakdown?: Array<{ Status: string; Count: number; Revenue: number }>;
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const value = (type: string) => parts.find((part) => part.type === type)?.value || '';
+  return `${value('year')}-${value('month')}-${value('day')}`;
+};
 
 const formatVnd = (value: number | string | null | undefined) =>
   Number(value || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
@@ -182,6 +191,22 @@ const formatDateTime = (value?: string) => {
     timeZone: 'Asia/Ho_Chi_Minh',
   });
 };
+
+const paymentMethodLabel = (value?: string) => {
+  switch (String(value || '').toUpperCase()) {
+    case 'CASH':
+      return 'Tiền mặt';
+    case 'BANK_TRANSFER':
+      return 'Chuyển khoản';
+    case 'MEMBER':
+      return 'Khách thành viên';
+    default:
+      return 'Chưa ghi nhận';
+  }
+};
+
+const displayOrderNo = (value?: string) =>
+  /^DRAFT-/i.test(String(value || '')) ? 'Chưa có Check No' : (value || 'Chưa có Check No');
 
 type LoyaltySetting = {
   pointsPerAmount: number;
@@ -1233,7 +1258,7 @@ export default function POS() {
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">Thanh toán mobile</p>
                 <h2 className="mt-1 text-2xl font-black text-stone-950">{mobilePaymentOrder.TableName}</h2>
-                <p className="text-sm font-bold text-amber-700">{mobilePaymentOrder.OrderNo}</p>
+                <p className="text-sm font-bold text-amber-700">{displayOrderNo(mobilePaymentOrder.OrderNo)}</p>
               </div>
               <button
                 type="button"
@@ -1368,7 +1393,7 @@ export default function POS() {
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-amber-700">Thanh toán khách thành viên</p>
                 <h2 className="mt-1 text-2xl font-black text-stone-950">{currentOrder.TableName}</h2>
-                <p className="text-sm font-bold text-amber-700">{currentOrder.OrderNo}</p>
+                <p className="text-sm font-bold text-amber-700">{displayOrderNo(currentOrder.OrderNo)}</p>
               </div>
               <button
                 type="button"
@@ -1591,7 +1616,7 @@ export default function POS() {
                         </span>
                       </div>
                       <p className="mt-3 text-sm font-semibold text-stone-500">{table.AreaName || 'Khu vực chính'}</p>
-                      {activeOrder && <p className="mt-1 truncate text-sm font-bold text-emerald-700">{activeOrder.OrderNo}</p>}
+                      {activeOrder && <p className="mt-1 truncate text-sm font-bold text-emerald-700">{displayOrderNo(activeOrder.OrderNo)}</p>}
                     </button>
                   );
                 })}
@@ -1627,7 +1652,7 @@ export default function POS() {
                         </span>
                       </div>
                       <p className="mt-2 text-xs font-semibold text-stone-500">{table.AreaName || 'Khu vực chính'}</p>
-                      {activeOrder && <p className="mt-1 text-xs text-emerald-700">{activeOrder.OrderNo}</p>}
+                      {activeOrder && <p className="mt-1 text-xs text-emerald-700">{displayOrderNo(activeOrder.OrderNo)}</p>}
                     </button>
                   );
                 })}
@@ -1712,7 +1737,7 @@ export default function POS() {
             <div className="sticky top-0 z-20 border-b border-stone-100 bg-white/95 p-3 backdrop-blur sm:p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-stone-400">Order hiện tại</p>
               <h2 className="text-xl font-extrabold text-stone-950 sm:text-2xl">{currentOrder ? currentOrder.TableName : 'Chưa chọn bàn'}</h2>
-              <p className="text-sm font-semibold text-amber-700">{currentOrder?.OrderNo || 'Mở bàn để tạo order'}</p>
+              <p className="text-sm font-semibold text-amber-700">{displayOrderNo(currentOrder?.OrderNo)}</p>
             </div>
 
             {!currentOrder ? (
@@ -2314,7 +2339,7 @@ export default function POS() {
                 <p className="mt-1 text-sm text-stone-500">Click một đơn để xem chi tiết món, giờ order và tổng tiền.</p>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
+                <table className="w-full min-w-[900px] text-left text-sm">
                   <thead className="bg-stone-50 text-xs uppercase text-stone-500">
                     <tr>
                       <th className="px-4 py-3">Check No</th>
@@ -2322,6 +2347,7 @@ export default function POS() {
                       <th className="px-4 py-3">Giờ order</th>
                       <th className="px-4 py-3">Món</th>
                       <th className="px-4 py-3 text-right">Tổng tiền</th>
+                      <th className="px-4 py-3">Thanh toán</th>
                       <th className="px-4 py-3">Trạng thái</th>
                     </tr>
                   </thead>
@@ -2333,6 +2359,11 @@ export default function POS() {
                         <td className="px-4 py-3">{formatDateTime(order.CreatedAt)}</td>
                         <td className="px-4 py-3">{order.ItemCount || 0}</td>
                         <td className="px-4 py-3 text-right font-extrabold">{formatVnd(order.TotalAmount)}</td>
+                        <td className="px-4 py-3">
+                          <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-800">
+                            {paymentMethodLabel(order.PaymentMethod)}
+                          </span>
+                        </td>
                         <td className="px-4 py-3"><span className="rounded-full bg-stone-100 px-2 py-1 text-xs font-bold">{order.Status}</span></td>
                       </tr>
                     ))}
@@ -2350,6 +2381,7 @@ export default function POS() {
                     <div className="rounded-xl bg-amber-50 p-3">
                       <p className="font-extrabold text-stone-950">{selectedHistoryOrder.OrderNo}</p>
                       <p className="text-sm text-stone-600">Bàn {selectedHistoryOrder.TableName} - {formatDateTime(selectedHistoryOrder.CreatedAt)}</p>
+                      <p className="mt-1 text-sm font-bold text-emerald-800">Thanh toán: {paymentMethodLabel(selectedHistoryOrder.PaymentMethod)}</p>
                     </div>
                     {selectedHistoryOrder.items?.map((item) => (
                       <div key={item.Id} className="flex justify-between gap-3 rounded-xl border border-stone-100 p-3 text-sm">
