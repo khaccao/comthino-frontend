@@ -150,12 +150,18 @@ type PosDashboardData = {
     OpenOrders?: number;
     AverageBill?: number;
     DiscountAmount?: number;
+    CashAmount?: number;
+    BankTransferAmount?: number;
+    MemberAmount?: number;
+    UnknownPaymentAmount?: number;
     PreviousRevenue?: number;
     PreviousPaidOrders?: number;
   };
+  paymentBreakdown?: Array<{ PaymentMethod: string; Orders: number; Amount: number }>;
   topItems: Array<{ Name: string; Quantity: number; Amount: number }>;
   hourly: Array<{ Hour: number; Revenue: number; Orders: number }>;
   statusBreakdown?: Array<{ Status: string; Count: number; Revenue: number }>;
+  period?: 'day' | 'month';
 };
 
 const today = () => {
@@ -256,6 +262,12 @@ const formatShortDate = (value: string) =>
     year: 'numeric',
   });
 
+const formatShortMonth = (value: string) =>
+  new Date(`${value.slice(0, 7)}-01T00:00:00`).toLocaleDateString('vi-VN', {
+    month: 'numeric',
+    year: 'numeric',
+  });
+
 const calcGrowth = (current?: number, previous?: number) => {
   const now = Number(current || 0);
   const before = Number(previous || 0);
@@ -263,7 +275,8 @@ const calcGrowth = (current?: number, previous?: number) => {
   return ((now - before) / before) * 100;
 };
 
-const formatGrowth = (value: number) => `${value >= 0 ? '+' : ''}${value.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}% so với ngày trước`;
+const formatGrowth = (value: number, period: 'day' | 'month' = 'day') =>
+  `${value >= 0 ? '+' : ''}${value.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}% so với ${period === 'month' ? 'tháng trước' : 'ngày trước'}`;
 
 const replaceToken = (content: string, token: string, value: string) => content.split(token).join(value);
 const escapeHtml = (value: string | number | null | undefined) =>
@@ -380,6 +393,7 @@ export default function POS() {
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState('');
   const [historyDate, setHistoryDate] = useState(today());
+  const [dashboardPeriod, setDashboardPeriod] = useState<'day' | 'month'>('day');
   const [history, setHistory] = useState<PosOrder[]>([]);
   const [selectedHistoryOrder, setSelectedHistoryOrder] = useState<PosOrder | null>(null);
   const [dashboard, setDashboard] = useState<PosDashboardData | null>(null);
@@ -444,9 +458,10 @@ export default function POS() {
 
   const loadReports = async (otpCode = revenueOtp) => {
     try {
+      const dashboardDate = dashboardPeriod === 'month' ? `${historyDate.slice(0, 7)}-01` : historyDate;
       const [historyRes, dashboardRes, kitchenLogRes] = await Promise.all([
         adminApi.getPosHistory(historyDate, otpCode),
-        adminApi.getPosDashboard(historyDate, otpCode),
+        adminApi.getPosDashboard(dashboardDate, otpCode, dashboardPeriod),
         adminApi.getPosKitchenPrintLogs(historyDate),
       ]);
       if (historyRes.success) setHistory(historyRes.data || []);
@@ -478,7 +493,7 @@ export default function POS() {
 
   useEffect(() => {
     if (activeTab === 'dashboard' && revenueOtpVerified) loadReports();
-  }, [activeTab, historyDate, revenueOtpVerified]);
+  }, [activeTab, historyDate, dashboardPeriod, revenueOtpVerified]);
 
   useEffect(() => {
     if (revenueOtpBypassed) setRevenueOtpVerified(true);
@@ -2224,23 +2239,77 @@ export default function POS() {
           <div className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-4 shadow-warm sm:p-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-wider text-stone-500">Dashboard POS</p>
-              <h2 className="mt-2 text-2xl font-extrabold text-stone-950 sm:text-4xl">{formatShortDate(historyDate)}</h2>
+              <h2 className="mt-2 text-2xl font-extrabold text-stone-950 sm:text-4xl">
+                {dashboardPeriod === 'month' ? formatShortMonth(historyDate) : formatShortDate(historyDate)}
+              </h2>
               <p className="mt-2 text-sm font-semibold text-stone-600">Doanh thu, lịch sử đơn và món bán chạy theo dữ liệu CAO_BNHHotelManagement.</p>
             </div>
             <div className="flex flex-col gap-3 sm:items-end">
-              <input type="date" value={historyDate} onChange={(e) => setHistoryDate(e.target.value)} className="h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-extrabold text-stone-800 shadow-sm" />
+              <div className="flex rounded-xl border border-emerald-200 bg-white p-1 shadow-sm">
+                {(['day', 'month'] as const).map((period) => (
+                  <button
+                    key={period}
+                    type="button"
+                    onClick={() => setDashboardPeriod(period)}
+                    className={`rounded-lg px-4 py-2 text-sm font-extrabold transition ${dashboardPeriod === period ? 'bg-emerald-600 text-white' : 'text-stone-600 hover:bg-stone-50'}`}
+                  >
+                    {period === 'day' ? 'Ngày' : 'Tháng'}
+                  </button>
+                ))}
+              </div>
+              {dashboardPeriod === 'month' ? (
+                <input
+                  type="month"
+                  value={historyDate.slice(0, 7)}
+                  onChange={(e) => setHistoryDate(`${e.target.value}-01`)}
+                  className="h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-extrabold text-stone-800 shadow-sm"
+                />
+              ) : (
+                <input type="date" value={historyDate} onChange={(e) => setHistoryDate(e.target.value)} className="h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-extrabold text-stone-800 shadow-sm" />
+              )}
               <div className="text-left sm:text-right">
                 <p className="text-3xl font-black text-emerald-700 sm:text-4xl">{formatVnd(dashboard?.summary.Revenue)}</p>
-                <p className="mt-1 text-xs font-extrabold uppercase tracking-wider text-stone-500">Doanh thu trong ngày</p>
+                <p className="mt-1 text-xs font-extrabold uppercase tracking-wider text-stone-500">Doanh thu trong {dashboardPeriod === 'month' ? 'tháng' : 'ngày'}</p>
               </div>
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-4">
-            <Metric label="Doanh thu" value={formatVnd(dashboard?.summary.Revenue)} hint={formatGrowth(revenueGrowth)} tone={revenueGrowth >= 0 ? 'up' : 'down'} />
-            <Metric label="Bill đã trả" value={dashboard?.summary.PaidOrders || 0} hint={formatGrowth(paidOrdersGrowth)} tone={paidOrdersGrowth >= 0 ? 'up' : 'down'} />
+            <Metric label="Doanh thu" value={formatVnd(dashboard?.summary.Revenue)} hint={formatGrowth(revenueGrowth, dashboardPeriod)} tone={revenueGrowth >= 0 ? 'up' : 'down'} />
+            <Metric label="Bill đã trả" value={dashboard?.summary.PaidOrders || 0} hint={formatGrowth(paidOrdersGrowth, dashboardPeriod)} tone={paidOrdersGrowth >= 0 ? 'up' : 'down'} />
             <Metric label="Order mở" value={dashboard?.summary.OpenOrders || 0} hint="Đang phục vụ tại bàn" />
             <Metric label="Trung bình bill" value={formatVnd(dashboard?.summary.AverageBill)} hint={`Discount ${formatVnd(dashboard?.summary.DiscountAmount)}`} />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-4">
+            <Metric label="Tiền mặt" value={formatVnd(dashboard?.summary.CashAmount)} hint={`Trong ${dashboardPeriod === 'month' ? 'tháng' : 'ngày'} đã chọn`} />
+            <Metric label="Chuyển khoản" value={formatVnd(dashboard?.summary.BankTransferAmount)} hint="Tổng tiền vào tài khoản" />
+            <Metric label="Khách thành viên" value={formatVnd(dashboard?.summary.MemberAmount)} hint="Thanh toán qua khách thành viên" />
+            <Metric label="Chưa ghi nhận" value={formatVnd(dashboard?.summary.UnknownPaymentAmount)} hint="Bill cũ hoặc thiếu hình thức" />
+          </div>
+
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-warm">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h3 className="text-lg font-extrabold text-stone-900">Dòng tiền theo hình thức thanh toán</h3>
+                <p className="mt-1 text-sm text-stone-500">Tách riêng tiền mặt và tiền chuyển khoản để đối soát quỹ/ngân hàng.</p>
+              </div>
+              <span className="text-xs font-black uppercase tracking-wider text-stone-400">{dashboardPeriod === 'month' ? 'Theo tháng' : 'Theo ngày'}</span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {(dashboard?.paymentBreakdown || []).map((item) => (
+                <div key={item.PaymentMethod} className="rounded-xl border border-stone-100 bg-stone-50 p-4">
+                  <p className="text-xs font-black uppercase tracking-wider text-stone-500">{paymentMethodLabel(item.PaymentMethod)}</p>
+                  <p className="mt-2 text-2xl font-black text-stone-950">{formatVnd(item.Amount)}</p>
+                  <p className="mt-1 text-sm font-bold text-stone-500">{Number(item.Orders || 0).toLocaleString('vi-VN')} bill</p>
+                </div>
+              ))}
+              {!dashboard?.paymentBreakdown?.length && (
+                <div className="rounded-xl border border-dashed border-stone-200 p-6 text-center text-sm font-semibold text-stone-500 md:col-span-2 xl:col-span-4">
+                  Chưa có thanh toán trong kỳ này.
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">

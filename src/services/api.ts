@@ -200,8 +200,8 @@ export const adminApi = {
     api.get('/admin/pos/kitchen-print-logs', { params: { date } }).then(res => res.data),
   getPosHistory: (date?: string, otp?: string) =>
     api.get('/admin/pos/orders/history', { params: { date }, ...(otp ? { headers: { 'x-otp-code': otp } } : {}) }).then(res => res.data),
-  getPosDashboard: (date?: string, otp?: string) =>
-    api.get('/admin/pos/dashboard', { params: { date }, ...(otp ? { headers: { 'x-otp-code': otp } } : {}) }).then(res => res.data),
+  getPosDashboard: (date?: string, otp?: string, period: 'day' | 'month' = 'day') =>
+    api.get('/admin/pos/dashboard', { params: { date, period }, ...(otp ? { headers: { 'x-otp-code': otp } } : {}) }).then(res => res.data),
   updatePosPaymentSetting: (data: any) => api.put('/admin/pos/payment-setting', data).then(res => res.data),
   updatePosPrintTemplate: (code: string, content: string) =>
     api.put(`/admin/pos/print-templates/${code}`, { content }).then(res => res.data),
