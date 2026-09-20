@@ -108,6 +108,7 @@ type PosOrder = {
   PendingKitchenQuantity?: number;
   KitchenPrintCount?: number;
   items?: PosOrderItem[];
+  transferLogs?: PosTableTransferLog[];
 };
 
 type PosKitchenPrintLog = {
@@ -124,6 +125,17 @@ type PosKitchenPrintLog = {
   PrintedBy?: string;
   PrintedAt: string;
   items?: Array<{ Name: string; DeltaQuantity: number; SnapshotQuantity: number; Note?: string; ActionType?: string }>;
+};
+
+type PosTableTransferLog = {
+  Id: string;
+  OrderId: string;
+  OrderNo: string;
+  FromTableName: string;
+  ToTableName: string;
+  Reason?: string;
+  TransferredBy?: string;
+  TransferredAt: string;
 };
 
 type PosPaymentSetting = {
@@ -399,6 +411,8 @@ export default function POS() {
   const [dashboard, setDashboard] = useState<PosDashboardData | null>(null);
   const [kitchenPrintLogs, setKitchenPrintLogs] = useState<PosKitchenPrintLog[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'CASH' | 'BANK_TRANSFER' | ''>('');
+  const [transferTargetTableId, setTransferTargetTableId] = useState('');
+  const [transferReason, setTransferReason] = useState('');
   const [revenueOtp, setRevenueOtp] = useState('');
   const [revenueOtpVerified, setRevenueOtpVerified] = useState(revenueOtpBypassed);
   const [revenueOtpError, setRevenueOtpError] = useState<string | null>(null);
@@ -525,6 +539,15 @@ export default function POS() {
     return result;
   }, [openOrders]);
 
+  const transferTargetTables = useMemo(() => {
+    if (!currentOrder) return [];
+    return tables.filter((table) => {
+      if (!table.IsActive || table.Id === currentOrder.TableId) return false;
+      const activeOrder = tableOrderMap.get(table.Id);
+      return !activeOrder || activeOrder.Id === currentOrder.Id;
+    });
+  }, [currentOrder?.Id, currentOrder?.TableId, tableOrderMap, tables]);
+
   const syncOpenOrder = (order: PosOrder) => {
     setOpenOrders((orders) => {
       const rest = orders.filter((item) => item.Id !== order.Id);
@@ -618,6 +641,8 @@ export default function POS() {
     setSelectedTable(table);
     setCurrentOrder(null);
     setSelectedPaymentMethod('');
+    setTransferTargetTableId('');
+    setTransferReason('');
     try {
       const res = await adminApi.openPosOrder(table.Id);
       if (res.success) {
@@ -717,6 +742,32 @@ export default function POS() {
     return currentOrder;
   };
 
+  const transferOrderTable = async () => {
+    if (!currentOrder || !transferTargetTableId) {
+      setToast('Chọn bàn trống cần chuyển sang.');
+      return;
+    }
+    const targetTable = tables.find((table) => table.Id === transferTargetTableId);
+    setIsSaving(true);
+    try {
+      const res = await adminApi.transferPosOrderTable(currentOrder.Id, transferTargetTableId, transferReason);
+      if (res.success) {
+        setCurrentOrder(res.data);
+        syncOpenOrder(res.data);
+        if (targetTable) setSelectedTable(targetTable);
+        setTransferTargetTableId('');
+        setTransferReason('');
+        setToast(`Đã chuyển order ${displayOrderNo(res.data.OrderNo)} sang bàn ${res.data.TableName}.`);
+        await loadBootstrap();
+      }
+    } catch (error) {
+      const message = (error as any)?.response?.data?.message || 'Không chuyển được bàn. Kiểm tra bàn đích còn trống.';
+      setToast(message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const confirmKitchen = async () => {
     if (!currentOrder || !currentOrder.items?.length) return;
     const orderToConfirm = await saveDirtyItemNotes();
@@ -738,6 +789,8 @@ export default function POS() {
     setSelectedCategory('ALL');
     setSearchTerm('');
     setMenuPage(1);
+    setTransferTargetTableId('');
+    setTransferReason('');
     setActiveTab('pos');
     setToast(warning ? `Đã thanh toán ${orderNo}. Đã quay về sơ đồ bàn. Cảnh báo kho: ${warning}` : `Đã thanh toán ${orderNo}. Đã quay về sơ đồ bàn.`);
     await loadBootstrap();
@@ -1778,6 +1831,56 @@ export default function POS() {
                       <b className="text-rose-600">-{formatVnd(currentDiscountAmount)}</b>
                     </div>
                   </div>
+                  <div className="rounded-2xl border border-sky-100 bg-sky-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wide text-sky-800">Chuyển bàn</p>
+                        <p className="mt-1 text-xs font-semibold text-sky-700">Chỉ chuyển được sang bàn đang trống.</p>
+                      </div>
+                      <span className="rounded-full bg-white px-2 py-1 text-xs font-black text-sky-800">{currentOrder.TableName}</span>
+                    </div>
+                    <div className="mt-3 grid gap-2">
+                      <select
+                        value={transferTargetTableId}
+                        onChange={(e) => setTransferTargetTableId(e.target.value)}
+                        className="h-11 w-full rounded-xl border border-sky-200 bg-white px-3 text-sm font-extrabold text-stone-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                      >
+                        <option value="">Chọn bàn trống để chuyển...</option>
+                        {transferTargetTables.map((table) => (
+                          <option key={table.Id} value={table.Id}>
+                            {table.Name} {table.AreaName ? `- ${table.AreaName}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        value={transferReason}
+                        onChange={(e) => setTransferReason(e.target.value)}
+                        placeholder="Lý do chuyển bàn (không bắt buộc)"
+                        className="h-10 w-full rounded-xl border border-sky-100 bg-white px-3 text-sm font-semibold outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={transferOrderTable}
+                        disabled={!transferTargetTableId || isSaving}
+                        className="rounded-xl bg-sky-700 px-4 py-2.5 text-sm font-extrabold text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-stone-300"
+                      >
+                        Chuyển order sang bàn này
+                      </button>
+                      {!transferTargetTables.length && (
+                        <p className="text-xs font-semibold text-sky-700">Hiện chưa có bàn trống phù hợp để chuyển.</p>
+                      )}
+                    </div>
+                    {!!currentOrder.transferLogs?.length && (
+                      <div className="mt-3 space-y-1 rounded-xl bg-white/80 p-2">
+                        {currentOrder.transferLogs.slice(0, 3).map((log) => (
+                          <div key={log.Id} className="text-xs font-semibold text-sky-900">
+                            {formatDateTime(log.TransferredAt)}: {log.FromTableName} → {log.ToTableName}
+                            {log.TransferredBy ? ` · ${log.TransferredBy}` : ''}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <label className="block rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold uppercase text-amber-900">
                     QR chuyển tiền
                     <select
@@ -2452,6 +2555,20 @@ export default function POS() {
                       <p className="text-sm text-stone-600">Bàn {selectedHistoryOrder.TableName} - {formatDateTime(selectedHistoryOrder.CreatedAt)}</p>
                       <p className="mt-1 text-sm font-bold text-emerald-800">Thanh toán: {paymentMethodLabel(selectedHistoryOrder.PaymentMethod)}</p>
                     </div>
+                    {!!selectedHistoryOrder.transferLogs?.length && (
+                      <div className="rounded-xl border border-sky-100 bg-sky-50 p-3">
+                        <p className="text-xs font-black uppercase tracking-wide text-sky-800">Lịch sử chuyển bàn</p>
+                        <div className="mt-2 space-y-1">
+                          {selectedHistoryOrder.transferLogs.map((log) => (
+                            <div key={log.Id} className="text-xs font-semibold text-sky-900">
+                              {formatDateTime(log.TransferredAt)}: {log.FromTableName} → {log.ToTableName}
+                              {log.TransferredBy ? ` · ${log.TransferredBy}` : ''}
+                              {log.Reason ? ` · ${log.Reason}` : ''}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     {selectedHistoryOrder.items?.map((item) => (
                       <div key={item.Id} className="flex justify-between gap-3 rounded-xl border border-stone-100 p-3 text-sm">
                         <div>

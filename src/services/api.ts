@@ -187,6 +187,8 @@ export const adminApi = {
   getPosOrder: (id: string) => api.get(`/admin/pos/orders/${id}`).then(res => res.data),
   getPosPrintContext: (id: string) => api.get(`/admin/pos/orders/${id}/print-context`).then(res => res.data),
   updatePosOrder: (id: string, data: any) => api.put(`/admin/pos/orders/${id}`, data).then(res => res.data),
+  transferPosOrderTable: (id: string, targetTableId: string, reason?: string) =>
+    api.post(`/admin/pos/orders/${id}/transfer-table`, { targetTableId, reason }).then(res => res.data),
   addPosOrderItem: (orderId: string, data: any) => api.post(`/admin/pos/orders/${orderId}/items`, data).then(res => res.data),
   updatePosOrderItem: (orderId: string, itemId: string, data: any) =>
     api.put(`/admin/pos/orders/${orderId}/items/${itemId}`, data).then(res => res.data),
