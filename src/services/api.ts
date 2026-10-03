@@ -393,6 +393,17 @@ export const payrollApi = {
   deleteAdjustment: (id: string) => api.delete(`/admin/payroll/adjustments/${id}`).then(unwrapData),
 };
 
+export const hrmApi = {
+  getBootstrap: (params?: { from?: string; to?: string }, otp?: string) =>
+    api.get('/admin/hrm/bootstrap', payrollOtpParamsConfig(params, otp)).then(unwrapData),
+  createShiftAssignment: (data: any) => api.post('/admin/hrm/shift-assignments', data).then(unwrapData),
+  updateShiftAssignmentStatus: (id: string, data: any) => api.patch(`/admin/hrm/shift-assignments/${id}/status`, data).then(unwrapData),
+  createAttendanceRule: (data: any) => api.post('/admin/hrm/attendance-rules', data).then(unwrapData),
+  updateAttendanceRule: (id: string, data: any) => api.put(`/admin/hrm/attendance-rules/${id}`, data).then(unwrapData),
+  deleteAttendanceRule: (id: string) => api.delete(`/admin/hrm/attendance-rules/${id}`).then(unwrapData),
+  decideAttendanceApproval: (id: string, data: any) => api.patch(`/admin/hrm/attendance-approvals/${id}`, data).then(unwrapData),
+};
+
 // --- AUDIT LOG API ---
 export const auditApi = {
   getLogs: (params?: { page?: number; limit?: number }) =>

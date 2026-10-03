@@ -141,6 +141,7 @@ export default function AdminLayout() {
       label: 'NHÂN SỰ',
       items: [
         { label: 'Chấm công & lương', path: '/admin/payroll', icon: CalendarClock, menuCode: 'PAYROLL' },
+        { label: 'HRM vận hành', path: '/admin/hrm', icon: CalendarClock, menuCode: 'PAYROLL' },
         { label: 'Đăng ký khuôn mặt', path: '/admin/face-registration', icon: ScanFace, menuCode: 'FACE_ATTENDANCE' },
         { label: 'Chấm công khuôn mặt', path: '/admin/face-attendance', icon: ScanFace, menuCode: 'FACE_ATTENDANCE', permissionCode: 'CREATE' },
         { label: 'Cấu hình Face AI', path: '/admin/face-recognition', icon: BrainCircuit, menuCode: 'FACE_ATTENDANCE' },

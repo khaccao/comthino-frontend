@@ -120,7 +120,7 @@ export default function FaceRegistration() {
         const result = await uploadToImageKit(
           shot.blob,
           `${pose.key.toLowerCase()}_${stamp}.jpg`,
-          `/face-registration/${selectedEmployee.code}`,
+          `/com-thi-no/hr/face-registration/${selectedEmployee.code}`,
         );
         uploaded.push({ pose: pose.key, imageUrl: result.url, imageKitFileId: result.fileId });
       }

@@ -49,6 +49,7 @@ import CashAccounts from './pages/admin/CashAccounts';
 import PaymentApprovals from './pages/admin/PaymentApprovals';
 import CashReports from './pages/admin/CashReports';
 import Payroll from './pages/admin/Payroll';
+import HRMOperations from './pages/admin/HRMOperations';
 import KitchenInventory from './pages/admin/KitchenInventory';
 import Customers from './pages/admin/Customers';
 import Branches from './pages/admin/Branches';
@@ -141,6 +142,7 @@ export default function App() {
           <Route path="suppliers" element={<AdminRouteGuard menuCode="SUPPLIER_CATEGORY"><Suppliers /></AdminRouteGuard>} />
           <Route path="suppliers/debt" element={<AdminRouteGuard menuCode="SUPPLIER_DEBT"><SupplierDebts /></AdminRouteGuard>} />
           <Route path="payroll" element={<AdminRouteGuard menuCode="PAYROLL"><Payroll /></AdminRouteGuard>} />
+          <Route path="hrm" element={<AdminRouteGuard menuCode="PAYROLL"><HRMOperations /></AdminRouteGuard>} />
           <Route path="customers" element={<AdminRouteGuard menuCode="CUSTOMER_MANAGEMENT"><Customers /></AdminRouteGuard>} />
           <Route path="system/branches" element={<AdminRouteGuard menuCode="BRANCH_MANAGEMENT"><Branches /></AdminRouteGuard>} />
           <Route path="face-registration" element={<AdminRouteGuard menuCode="FACE_ATTENDANCE"><FaceRegistration /></AdminRouteGuard>} />

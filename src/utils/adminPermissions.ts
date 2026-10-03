@@ -41,6 +41,7 @@ export const ADMIN_VIEW_ROUTES: AdminPermissionRoute[] = [
   { path: '/admin/cash/accounts', menuCode: 'BANK_ACCOUNT' },
   { path: '/admin/reports/cash', menuCode: 'CASH_REPORT' },
   { path: '/admin/payroll', menuCode: 'PAYROLL' },
+  { path: '/admin/hrm', menuCode: 'PAYROLL' },
   { path: '/admin/users', menuCode: 'USER_MANAGEMENT' },
   { path: '/admin/roles', menuCode: 'ROLE_MANAGEMENT' },
   { path: '/admin/permissions', menuCode: 'PERMISSION_MANAGEMENT' },
