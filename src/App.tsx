@@ -145,9 +145,9 @@ export default function App() {
           <Route path="hrm" element={<AdminRouteGuard menuCode="PAYROLL"><HRMOperations /></AdminRouteGuard>} />
           <Route path="customers" element={<AdminRouteGuard menuCode="CUSTOMER_MANAGEMENT"><Customers /></AdminRouteGuard>} />
           <Route path="system/branches" element={<AdminRouteGuard menuCode="BRANCH_MANAGEMENT"><Branches /></AdminRouteGuard>} />
-          <Route path="face-registration" element={<AdminRouteGuard menuCode="FACE_ATTENDANCE"><FaceRegistration /></AdminRouteGuard>} />
+          <Route path="face-registration" element={<AdminRouteGuard menuCode="FACE_REGISTRATION"><FaceRegistration /></AdminRouteGuard>} />
           <Route path="face-attendance" element={<AdminRouteGuard menuCode="FACE_ATTENDANCE" permissionCode="CREATE"><FaceAttendance /></AdminRouteGuard>} />
-          <Route path="face-recognition" element={<AdminRouteGuard menuCode="FACE_ATTENDANCE"><FaceRecognitionSettings /></AdminRouteGuard>} />
+          <Route path="face-recognition" element={<AdminRouteGuard menuCode="FACE_RECOGNITION_CONFIG"><FaceRecognitionSettings /></AdminRouteGuard>} />
           <Route path="cao-restaurant" element={<AdminRouteGuard menuCode="CAO_RESTAURANT_DATA"><CaoRestaurantData /></AdminRouteGuard>} />
           <Route path="website-builder" element={<Navigate to="/admin/website-builder/overview" replace />} />
           <Route path="website-builder/:builderSection" element={<AdminRouteGuard menuCode="WEBSITE_BUILDER"><WebsiteBuilder /></AdminRouteGuard>} />
