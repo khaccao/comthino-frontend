@@ -36,11 +36,27 @@ type Employee = {
   fullName: string;
   phone?: string;
   position?: string;
+  linkedUserId?: string | null;
+  linkedUser?: UserAccount | null;
   defaultShiftId?: string;
   hourlyRate?: number | null;
   note?: string;
   isActive: boolean;
   defaultShift?: Shift | null;
+};
+
+type UserAccount = {
+  id: string;
+  fullName: string;
+  email: string;
+  phone?: string | null;
+  role?: string;
+  isActive: boolean;
+  payrollEmployee?: {
+    id: string;
+    code: string;
+    fullName: string;
+  } | null;
 };
 
 type Attendance = {
@@ -206,6 +222,7 @@ export default function Payroll() {
   const [payrollOtpLoading, setPayrollOtpLoading] = useState(false);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [accountUsers, setAccountUsers] = useState<UserAccount[]>([]);
   const [attendances, setAttendances] = useState<Attendance[]>([]);
   const [runs, setRuns] = useState<PayrollRun[]>([]);
   const [kpiLevels, setKpiLevels] = useState<KpiLevel[]>([]);
@@ -234,6 +251,7 @@ export default function Payroll() {
     fullName: '',
     phone: '',
     position: '',
+    linkedUserId: '',
     defaultShiftId: '',
     hourlyRate: '',
     note: '',
@@ -322,6 +340,7 @@ export default function Payroll() {
       ]);
       setShifts(data.shifts || []);
       setEmployees(data.employees || []);
+      setAccountUsers(data.users || []);
       setAttendances(attendanceData || data.attendances || []);
       setRuns(data.runs || []);
       setKpiLevels(data.kpiLevels || []);
@@ -386,6 +405,7 @@ export default function Payroll() {
   const activeShifts = shifts.filter((item) => item.isActive);
   const activeKpiLevels = kpiLevels.filter((item) => item.isActive);
   const activeAdjustmentCategories = adjustmentCategories.filter((item) => item.isActive);
+  const assignableAccountUsers = accountUsers.filter((item) => !item.payrollEmployee || item.payrollEmployee.id === editingEmployeeId);
 
   const summary = useMemo(() => {
     const totalHours = attendances.reduce((sum, item) => sum + Number(item.totalHours || 0), 0);
@@ -412,7 +432,7 @@ export default function Payroll() {
 
   const resetEmployee = () => {
     setEditingEmployeeId('');
-    setEmployeeForm({ code: '', fullName: '', phone: '', position: '', defaultShiftId: '', hourlyRate: '', note: '', isActive: true });
+    setEmployeeForm({ code: '', fullName: '', phone: '', position: '', linkedUserId: '', defaultShiftId: '', hourlyRate: '', note: '', isActive: true });
   };
 
   const resetAttendance = () => {
@@ -458,6 +478,7 @@ export default function Payroll() {
     try {
       const payload = {
         ...employeeForm,
+        linkedUserId: employeeForm.linkedUserId || null,
         defaultShiftId: employeeForm.defaultShiftId || null,
         hourlyRate: employeeForm.hourlyRate === '' ? null : Number(employeeForm.hourlyRate),
       };
@@ -465,8 +486,7 @@ export default function Payroll() {
       else await payrollApi.createEmployee(payload);
       setToast('Đã lưu nhân viên.');
       resetEmployee();
-      const data = await payrollApi.getEmployees(payrollOtp);
-      setEmployees(data || []);
+      await loadBootstrap(payrollOtp);
     } catch (error: any) {
       setToast(error?.response?.data?.message || 'Lỗi khi lưu nhân viên.');
     }
@@ -1006,6 +1026,14 @@ export default function Payroll() {
               <Input label="Tên nhân viên" value={employeeForm.fullName} onChange={(v) => setEmployeeForm({ ...employeeForm, fullName: v })} />
               <Input label="Số điện thoại" value={employeeForm.phone} onChange={(v) => setEmployeeForm({ ...employeeForm, phone: v })} />
               <Input label="Vị trí" value={employeeForm.position} onChange={(v) => setEmployeeForm({ ...employeeForm, position: v })} />
+              <Select label="Tài khoản đăng nhập" value={employeeForm.linkedUserId} onChange={(v) => setEmployeeForm({ ...employeeForm, linkedUserId: v })}>
+                <option value="">Chưa gán tài khoản</option>
+                {assignableAccountUsers.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.fullName} - {item.email}{item.payrollEmployee ? ` (đang gán ${item.payrollEmployee.code})` : ''}
+                  </option>
+                ))}
+              </Select>
               <Select label="Ca mặc định" value={employeeForm.defaultShiftId} onChange={(v) => setEmployeeForm({ ...employeeForm, defaultShiftId: v })}>
                 <option value="">Chưa gán ca</option>
                 {activeShifts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
@@ -1032,6 +1060,7 @@ export default function Payroll() {
                 <div className="mt-4 rounded-xl bg-stone-50 p-3 text-sm">
                   <div className="flex justify-between"><span>Ca mặc định</span><b>{item.defaultShift?.name || '-'}</b></div>
                   <div className="mt-2 flex justify-between"><span>Lương/giờ</span><b>{formatVnd(Number(item.hourlyRate || item.defaultShift?.hourlyRate || 0))}</b></div>
+                  <div className="mt-2 flex justify-between gap-3"><span>T?i kho?n</span><b className="truncate text-right">{item.linkedUser?.email || '-'}</b></div>
                 </div>
                 <div className="mt-4 flex gap-2">
                   <button onClick={() => {
@@ -1041,6 +1070,7 @@ export default function Payroll() {
                       fullName: item.fullName,
                       phone: item.phone || '',
                       position: item.position || '',
+                      linkedUserId: item.linkedUserId || '',
                       defaultShiftId: item.defaultShiftId || '',
                       hourlyRate: item.hourlyRate ? String(item.hourlyRate) : '',
                       note: item.note || '',
