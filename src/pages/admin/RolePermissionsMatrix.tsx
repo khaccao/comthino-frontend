@@ -6,6 +6,20 @@ import { Save, Check, Key } from 'lucide-react';
 import { Role, Menu, Permission, RolePermission } from '../../types';
 import { useSearchParams } from 'react-router-dom';
 
+const permissionOrder = [
+  'APPROVE',
+  'CANCEL',
+  'CREATE',
+  'DELETE',
+  'EDIT',
+  'EXPORT',
+  'IMPORT',
+  'PAY',
+  'POST_ACCOUNTING',
+  'PRINT',
+  'VIEW',
+];
+
 export default function RolePermissionsMatrix() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [menus, setMenus] = useState<Menu[]>([]);
@@ -30,9 +44,15 @@ export default function RolePermissionsMatrix() {
         permissionApi.getMenus(),
         permissionApi.getAll(),
       ]);
+      const orderedMenus = [...menusData].sort((a: Menu, b: Menu) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      const orderedPermissions = [...permsData].sort((a: Permission, b: Permission) => {
+        const aIndex = permissionOrder.indexOf(a.code);
+        const bIndex = permissionOrder.indexOf(b.code);
+        return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex) || a.name.localeCompare(b.name);
+      });
       setRoles(rolesData);
-      setMenus(menusData);
-      setPermissionsList(permsData);
+      setMenus(orderedMenus);
+      setPermissionsList(orderedPermissions);
 
       const rId = searchParams.get('roleId') || (rolesData.length > 0 ? rolesData[0].id : '');
       if (rId) {
