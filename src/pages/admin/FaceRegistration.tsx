@@ -47,6 +47,12 @@ type Shot = {
   imageKitFileId?: string;
 };
 
+type CaptureNotice = {
+  type: 'info' | 'success' | 'error';
+  title: string;
+  detail?: string;
+};
+
 const poses = [
   { key: 'FRONT', label: 'Chính diện', shortLabel: 'Chính diện', hint: 'Nhìn thẳng camera, mặt nằm trọn trong khung.' },
   { key: 'LEFT', label: 'Nghiêng trái', shortLabel: 'Trái', hint: 'Xoay nhẹ mặt sang trái, vẫn nhìn thấy rõ hai mắt.' },
@@ -75,6 +81,22 @@ const statusMeta: Record<ShotStatus, { label: string; className: string }> = {
   invalid: { label: 'Chụp lại', className: 'bg-rose-100 text-rose-700' },
 };
 
+const noticeStyle: Record<CaptureNotice['type'], string> = {
+  info: 'border-sky-200 bg-sky-50 text-sky-900',
+  success: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+  error: 'border-rose-200 bg-rose-50 text-rose-900',
+};
+
+const readableError = (error: any, fallback: string) => {
+  const raw = error?.response?.data?.message || error?.message || fallback;
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return parsed?.message || parsed?.error || raw;
+  } catch {
+    return raw;
+  }
+};
+
 export default function FaceRegistration() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -91,6 +113,7 @@ export default function FaceRegistration() {
   const [loading, setLoading] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
+  const [captureNotice, setCaptureNotice] = useState<CaptureNotice | null>(null);
 
   const selectedEmployee = canRegisterOthers ? employees.find((item) => item.id === employeeId) : currentEmployee || employees[0];
   const currentPose = poses[step];
@@ -152,7 +175,9 @@ export default function FaceRegistration() {
       if (['INVALID_PAYROLL_OTP', 'TWO_FACTOR_REQUIRED'].includes(error?.response?.data?.code)) {
         setNeedsOtp(true);
       }
-      setMessage(error?.response?.data?.message || error.message || 'Không tải được dữ liệu khuôn mặt.');
+      const nextMessage = readableError(error, 'Không tải được dữ liệu khuôn mặt.');
+      setMessage(nextMessage);
+      setCaptureNotice({ type: 'error', title: 'Không tải được dữ liệu', detail: nextMessage });
     } finally {
       setLoading(false);
     }
@@ -160,25 +185,43 @@ export default function FaceRegistration() {
 
   useEffect(() => {
     load('');
-    startCamera().catch((error) => setMessage(error.message || 'Không mở được camera.'));
+    startCamera().catch((error) => {
+      const nextMessage = readableError(error, 'Không mở được camera.');
+      setMessage(nextMessage);
+      setCaptureNotice({ type: 'error', title: 'Không mở được camera', detail: nextMessage });
+    });
     return stopCamera;
   }, []);
 
-  const resetShots = () => {
+  const resetShots = (clearNotice = true) => {
     Object.values(shots).forEach((shot) => URL.revokeObjectURL(shot.preview));
     setShots({});
     setStep(0);
-    setMessage('');
+    if (clearNotice) {
+      setMessage('');
+      setCaptureNotice(null);
+    }
   };
 
   const validateCapturedShot = async (poseKey: string, shot: Shot, employee: Employee) => {
     try {
       const stamp = vietnamStamp();
+      const poseLabel = poses.find((pose) => pose.key === poseKey)?.label || 'Ảnh';
+      setCaptureNotice({
+        type: 'info',
+        title: `Đã chụp ${poseLabel}`,
+        detail: 'Đang upload ảnh lên ImageKit...',
+      });
       const uploaded = await uploadToImageKit(
         shot.blob,
         `${poseKey.toLowerCase()}_${stamp}.jpg`,
         `/com-thi-no/hr/face-registration/${employee.code}/draft`,
       );
+      setCaptureNotice({
+        type: 'info',
+        title: `Đã lưu ảnh ${poseLabel}`,
+        detail: 'Đang gửi Face AI kiểm tra khuôn mặt...',
+      });
       const validation = await faceApi.validateRegistrationImage({
         pose: poseKey,
         imageUrl: uploaded.url,
@@ -196,6 +239,12 @@ export default function FaceRegistration() {
         },
       }));
 
+      setCaptureNotice({
+        type: validation.isValid ? 'success' : 'error',
+        title: validation.isValid ? `${poseLabel} đạt điều kiện` : `${poseLabel} chưa đạt`,
+        detail: validation.message || (validation.isValid ? 'Có thể chụp ảnh tiếp theo.' : 'Vui lòng chụp lại ảnh này.'),
+      });
+
       if (validation.isValid) {
         const nextIndex = Math.min(step + 1, poses.length - 1);
         const nextPose = poses[nextIndex];
@@ -204,27 +253,43 @@ export default function FaceRegistration() {
         }
       }
     } catch (error: any) {
+      const nextMessage = readableError(error, 'Không kiểm tra được ảnh. Vui lòng chụp lại.');
       setShots((prev) => ({
         ...prev,
         [poseKey]: {
           ...prev[poseKey],
           status: 'invalid',
-          message: error?.response?.data?.message || error.message || 'Không kiểm tra được ảnh. Vui lòng chụp lại.',
+          message: nextMessage,
           checks: [],
         },
       }));
+      setCaptureNotice({
+        type: 'error',
+        title: 'Ảnh chưa được kiểm tra',
+        detail: nextMessage,
+      });
     }
   };
 
   const capture = async () => {
     if (!selectedEmployee) {
-      setMessage(canRegisterOthers ? 'Vui lòng chọn nhân viên trước khi chụp.' : 'Tài khoản này chưa được gán với hồ sơ nhân viên.');
+      const nextMessage = canRegisterOthers ? 'Vui lòng chọn nhân viên trước khi chụp.' : 'Tài khoản này chưa được gán với hồ sơ nhân viên.';
+      setMessage(nextMessage);
+      setCaptureNotice({ type: 'error', title: 'Chưa thể chụp', detail: nextMessage });
       return;
     }
-    if (!videoRef.current || !canvasRef.current || !currentPose) return;
+    if (!videoRef.current || !canvasRef.current || !currentPose) {
+      setCaptureNotice({ type: 'error', title: 'Camera chưa sẵn sàng', detail: 'Vui lòng bấm Mở lại camera rồi thử chụp lại.' });
+      return;
+    }
 
     setCapturing(true);
     setMessage('');
+    setCaptureNotice({
+      type: 'info',
+      title: `Đang chụp ${currentPose.label}`,
+      detail: 'Giữ điện thoại chắc, nhìn theo hướng dẫn trên màn hình.',
+    });
     try {
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -242,9 +307,16 @@ export default function FaceRegistration() {
         if (prev[currentPose.key]?.preview) URL.revokeObjectURL(prev[currentPose.key].preview);
         return { ...prev, [currentPose.key]: nextShot };
       });
+      setCaptureNotice({
+        type: 'info',
+        title: `Đã chụp ${currentPose.label}`,
+        detail: 'Ảnh đã hiện trong danh sách. Hệ thống đang kiểm tra điều kiện nhận diện.',
+      });
       await validateCapturedShot(currentPose.key, nextShot, selectedEmployee);
     } catch (error: any) {
-      setMessage(error.message || 'Không chụp được ảnh.');
+      const nextMessage = readableError(error, 'Không chụp được ảnh.');
+      setMessage(nextMessage);
+      setCaptureNotice({ type: 'error', title: 'Không chụp được ảnh', detail: nextMessage });
     } finally {
       setCapturing(false);
     }
@@ -252,16 +324,25 @@ export default function FaceRegistration() {
 
   const submit = async () => {
     if (!selectedEmployee) {
-      setMessage(canRegisterOthers ? 'Vui lòng chọn nhân viên.' : 'Tài khoản này chưa được gán với hồ sơ nhân viên.');
+      const nextMessage = canRegisterOthers ? 'Vui lòng chọn nhân viên.' : 'Tài khoản này chưa được gán với hồ sơ nhân viên.';
+      setMessage(nextMessage);
+      setCaptureNotice({ type: 'error', title: 'Chưa thể lưu', detail: nextMessage });
       return;
     }
     if (!poses.every((pose) => shots[pose.key]?.status === 'valid' && shots[pose.key]?.imageUrl)) {
-      setMessage('Cần đủ 3 ảnh đã đạt điều kiện nhận diện trước khi lưu.');
+      const missing = poses
+        .filter((pose) => shots[pose.key]?.status !== 'valid')
+        .map((pose) => pose.label)
+        .join(', ');
+      const nextMessage = `Cần đủ 3 ảnh đạt điều kiện trước khi lưu. Chưa đạt: ${missing || 'chưa đủ ảnh'}.`;
+      setMessage(nextMessage);
+      setCaptureNotice({ type: 'error', title: 'Chưa thể lưu đăng ký', detail: nextMessage });
       return;
     }
 
     setLoading(true);
     setMessage('');
+    setCaptureNotice({ type: 'info', title: 'Đang lưu đăng ký', detail: 'Đang ghi embedding và 3 ảnh khuôn mặt vào hồ sơ nhân viên.' });
     try {
       const images = poses.map((pose) => ({
         pose: pose.key,
@@ -269,11 +350,20 @@ export default function FaceRegistration() {
         imageKitFileId: shots[pose.key].imageKitFileId,
       }));
       await faceApi.registerEmployeeFace({ employeeId: canRegisterOthers ? selectedEmployee.id : undefined, images });
-      setMessage('Đã đăng ký khuôn mặt thành công. Nhân viên có thể dùng chấm công khuôn mặt.');
-      resetShots();
-      await load(otp);
+      const nextMessage = 'Đã đăng ký khuôn mặt thành công. Nhân viên có thể dùng chấm công khuôn mặt.';
+      setMessage(nextMessage);
+      setCaptureNotice({ type: 'success', title: 'Đăng ký thành công', detail: nextMessage });
+      resetShots(false);
+      setEmployees((prev) => prev.map((employee) => (
+        employee.id === selectedEmployee.id ? { ...employee, faceStatus: 'REGISTERED' } : employee
+      )));
+      if (currentEmployee?.id === selectedEmployee.id) {
+        setCurrentEmployee((prev) => prev ? { ...prev, faceStatus: 'REGISTERED' } : prev);
+      }
     } catch (error: any) {
-      setMessage(error?.response?.data?.message || error.message || 'Không đăng ký được khuôn mặt.');
+      const nextMessage = readableError(error, 'Không đăng ký được khuôn mặt.');
+      setMessage(nextMessage);
+      setCaptureNotice({ type: 'error', title: 'Lưu đăng ký thất bại', detail: nextMessage });
     } finally {
       setLoading(false);
     }
@@ -306,6 +396,22 @@ export default function FaceRegistration() {
         </div>
       )}
 
+      {captureNotice && (
+        <div className={`flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-sm ${noticeStyle[captureNotice.type]}`}>
+          {captureNotice.type === 'success' ? (
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+          ) : captureNotice.type === 'error' ? (
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+          ) : (
+            <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin" />
+          )}
+          <div className="min-w-0">
+            <p className="font-black">{captureNotice.title}</p>
+            {captureNotice.detail && <p className="mt-1 text-sm opacity-80">{captureNotice.detail}</p>}
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_430px]">
         <section className="overflow-hidden rounded-3xl border border-stone-200 bg-stone-950 shadow-sm">
           <div className="relative aspect-[3/4] w-full bg-black sm:aspect-[4/3] lg:aspect-video">
@@ -320,6 +426,37 @@ export default function FaceRegistration() {
               </div>
               <p className="mt-1 text-sm text-white/80">{currentPose?.hint || 'Kiểm tra lại ảnh trước khi lưu.'}</p>
             </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 border-t border-white/10 bg-stone-900 p-3">
+            {poses.map((pose) => {
+              const shot = shots[pose.key];
+              const meta = statusMeta[shot?.status || 'pending'];
+              return (
+                <button
+                  type="button"
+                  key={pose.key}
+                  onClick={() => setStep(poses.findIndex((item) => item.key === pose.key))}
+                  className={`min-w-0 rounded-2xl border p-2 text-left ${
+                    currentPose.key === pose.key ? 'border-amber-400 bg-amber-400/15' : 'border-white/10 bg-white/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {shot?.preview ? (
+                      <img src={shot.preview} alt={pose.label} className="h-8 w-8 rounded-xl object-cover" />
+                    ) : (
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/60">
+                        <ScanFace className="h-4 w-4" />
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-black text-white">{pose.shortLabel}</p>
+                      <span className={`mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-black ${meta.className}`}>{meta.label}</span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           <div className="grid gap-3 p-3 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:p-4">
@@ -440,7 +577,7 @@ export default function FaceRegistration() {
           <section className="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={resetShots}
+                onClick={() => resetShots()}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-stone-200 px-4 py-3 font-bold hover:bg-stone-50"
               >
                 <RotateCcw className="h-4 w-4" /> Chụp lại
@@ -464,9 +601,10 @@ export default function FaceRegistration() {
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white/95 p-3 shadow-[0_-12px_35px_rgba(28,25,23,0.12)] backdrop-blur sm:hidden">
         <div className="grid grid-cols-[1fr_auto] gap-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-bold uppercase text-stone-500">Sẵn sàng lưu</p>
             <p className="font-black text-stone-950">{validCount}/3 ảnh đạt</p>
+            {captureNotice && <p className="mt-0.5 truncate text-xs font-bold text-stone-600">{captureNotice.title}</p>}
           </div>
           <button
             disabled={loading || !allValid}
