@@ -225,6 +225,7 @@ export default function FaceRegistration() {
       const validation = await faceApi.validateRegistrationImage({
         pose: poseKey,
         imageUrl: uploaded.url,
+        employeeId: canRegisterOthers ? employee.id : undefined,
       });
 
       setShots((prev) => ({
