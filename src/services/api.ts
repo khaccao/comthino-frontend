@@ -259,6 +259,7 @@ export const customerApi = {
 export const faceApi = {
   getRegistrationBootstrap: (otp?: string) =>
     api.get('/admin/face-registration/bootstrap', otp ? { headers: { 'x-otp-code': otp } } : undefined).then(unwrapData),
+  validateRegistrationImage: (data: any) => api.post('/admin/face-registration/validate-image', data).then(unwrapData),
   registerEmployeeFace: (data: any) => api.post('/admin/face-registration', data).then(unwrapData),
   recognizeAttendance: (data: any) => api.post('/admin/face-attendance/recognize', data).then(unwrapData),
   getConfig: () => api.get('/admin/face-recognition/config').then(unwrapData),
