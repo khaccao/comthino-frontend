@@ -26,6 +26,8 @@ export default function FaceRegistration() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [currentEmployee, setCurrentEmployee] = useState<Employee | null>(null);
+  const [canRegisterOthers, setCanRegisterOthers] = useState(false);
   const [employeeId, setEmployeeId] = useState('');
   const [step, setStep] = useState(0);
   const [shots, setShots] = useState<Record<string, { blob: Blob; preview: string }>>({});
@@ -35,8 +37,21 @@ export default function FaceRegistration() {
   const [loading, setLoading] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
 
-  const selectedEmployee = employees.find((item) => item.id === employeeId);
+  const selectedEmployee = canRegisterOthers ? employees.find((item) => item.id === employeeId) : currentEmployee || employees[0];
   const currentPose = poses[step];
+
+  const drawMirroredCameraFrame = (video: HTMLVideoElement, canvas: HTMLCanvasElement) => {
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return false;
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    return true;
+  };
 
   const startCamera = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -62,7 +77,17 @@ export default function FaceRegistration() {
     setMessage('');
     try {
       const data = await faceApi.getRegistrationBootstrap(nextOtp);
-      setEmployees(data.employees || []);
+      const nextEmployees = data.employees || [];
+      const nextCurrentEmployee = data.currentEmployee || null;
+      const nextCanRegisterOthers = Boolean(data.canRegisterOthers);
+      setEmployees(nextEmployees);
+      setCurrentEmployee(nextCurrentEmployee);
+      setCanRegisterOthers(nextCanRegisterOthers);
+      if (!nextCanRegisterOthers) {
+        setEmployeeId(nextCurrentEmployee?.id || nextEmployees[0]?.id || '');
+      } else if (!employeeId && nextEmployees.length === 1) {
+        setEmployeeId(nextEmployees[0].id);
+      }
       setNeedsOtp(false);
     } catch (error: any) {
       if (['INVALID_PAYROLL_OTP', 'TWO_FACTOR_REQUIRED'].includes(error?.response?.data?.code)) {
@@ -84,11 +109,7 @@ export default function FaceRegistration() {
     if (!videoRef.current || !canvasRef.current || !currentPose) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth || 1280;
-    canvas.height = video.videoHeight || 720;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    if (!drawMirroredCameraFrame(video, canvas)) return;
     const blob = await canvasToJpegBlob(canvas, 0.9);
     setShots((prev) => ({ ...prev, [currentPose.key]: { blob, preview: URL.createObjectURL(blob) } }));
     if (step < poses.length - 1) setStep(step + 1);
@@ -96,7 +117,7 @@ export default function FaceRegistration() {
 
   const submit = async () => {
     if (!selectedEmployee) {
-      setMessage('Vui lòng chọn nhân viên.');
+      setMessage(canRegisterOthers ? 'Vui lòng chọn nhân viên.' : 'Tài khoản này chưa được gán với hồ sơ nhân viên.');
       return;
     }
     if (!poses.every((pose) => shots[pose.key])) {
@@ -124,7 +145,7 @@ export default function FaceRegistration() {
         );
         uploaded.push({ pose: pose.key, imageUrl: result.url, imageKitFileId: result.fileId });
       }
-      await faceApi.registerEmployeeFace({ employeeId: selectedEmployee.id, images: uploaded });
+      await faceApi.registerEmployeeFace({ employeeId: canRegisterOthers ? selectedEmployee.id : undefined, images: uploaded });
       setMessage('Đã đăng ký khuôn mặt cho nhân viên.');
       setShots({});
       setStep(0);
@@ -150,7 +171,7 @@ export default function FaceRegistration() {
       <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
         <section className="overflow-hidden rounded-3xl border border-stone-200 bg-stone-950 shadow-sm">
           <div className="relative aspect-video w-full bg-black">
-            <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
+            <video ref={videoRef} playsInline muted className="h-full w-full object-cover" style={{ transform: 'scaleX(-1)' }} />
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="h-[64%] w-[42%] rounded-[50%] border-4 border-white/70 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)]" />
             </div>
@@ -172,11 +193,20 @@ export default function FaceRegistration() {
         </section>
 
         <aside className="rounded-3xl bg-white p-5 shadow-sm border border-stone-200">
-          <label className="text-xs font-bold uppercase text-stone-500">Nhân viên</label>
-          <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="mt-2 w-full rounded-xl border border-stone-200 px-3 py-3 outline-none focus:border-amber-500">
-            <option value="">Chọn nhân viên</option>
-            {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.code} - {employee.fullName}</option>)}
-          </select>
+          {canRegisterOthers ? (
+            <>
+              <label className="text-xs font-bold uppercase text-stone-500">Nhân viên</label>
+              <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} className="mt-2 w-full rounded-xl border border-stone-200 px-3 py-3 outline-none focus:border-amber-500">
+                <option value="">Chọn nhân viên</option>
+                {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.code} - {employee.fullName}</option>)}
+              </select>
+            </>
+          ) : (
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
+              <p className="text-xs font-bold uppercase tracking-wide">Tài khoản đang đăng nhập</p>
+              <p className="mt-1 font-semibold">Hệ thống tự đăng ký khuôn mặt cho nhân viên đã gán với tài khoản này.</p>
+            </div>
+          )}
           {selectedEmployee && (
             <div className="mt-4 rounded-2xl bg-stone-50 p-4">
               <p className="font-bold text-stone-950">{selectedEmployee.fullName}</p>

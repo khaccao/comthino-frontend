@@ -46,6 +46,19 @@ export default function FaceAttendance() {
   const [handoverFiles, setHandoverFiles] = useState<File[]>([]);
   const [location, setLocation] = useState<{ latitude?: number; longitude?: number; text?: string }>({});
 
+  const drawMirroredCameraFrame = (video: HTMLVideoElement, canvas: HTMLCanvasElement) => {
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return false;
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    return true;
+  };
+
   const startCamera = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -99,11 +112,7 @@ export default function FaceAttendance() {
     try {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Không lấy được khung hình camera.');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (!drawMirroredCameraFrame(video, canvas)) throw new Error('Không lấy được khung hình camera.');
       const blob = await canvasToJpegBlob(canvas, 0.9);
       const date = vietnamStamp();
       const baseFolder = `/com-thi-no/hr/attendance/${date.year}/${date.month}/${date.day}`;
@@ -168,7 +177,7 @@ export default function FaceAttendance() {
 
       <section className="overflow-hidden rounded-3xl border border-stone-200 bg-stone-950 shadow-sm">
         <div className="relative aspect-[4/5] bg-black sm:aspect-video">
-          <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
+          <video ref={videoRef} playsInline muted className="h-full w-full object-cover" style={{ transform: 'scaleX(-1)' }} />
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div className="h-[58%] w-[62%] rounded-[50%] border-4 border-white/75 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)] sm:w-[36%]" />
           </div>
